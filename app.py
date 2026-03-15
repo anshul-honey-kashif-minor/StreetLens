@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File
+from service.save_image import saveImageTemp
 
 app = FastAPI()
 
@@ -9,7 +10,7 @@ def health() :
 
 @app.post("/image-analyzer")
 def image_analyzer(file : UploadFile = File(...)) :
+    filename = saveImageTemp(file)
     return {
-        "filename" : file.filename,
-        "content_type" : file.content_type
+        "saved_path" : filename
     }
