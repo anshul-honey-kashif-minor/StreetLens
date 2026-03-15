@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
-from service.save_image import saveImageTemp
+from service.save_image import saveImageTemp, deleteTemp
+from service.ocr_service import process_image
 
 app = FastAPI()
 
@@ -11,6 +12,9 @@ def health() :
 @app.post("/image-analyzer")
 def image_analyzer(file : UploadFile = File(...)) :
     filename = saveImageTemp(file)
-    return {
-        "saved_path" : filename
-    }
+
+    result = process_image(filename)
+
+    deleteTemp(filename)
+
+    return result
