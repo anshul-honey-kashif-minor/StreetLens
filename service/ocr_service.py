@@ -2,6 +2,7 @@ from utils import logger
 from ocr_module import OCRProcessor
 from extractor import InformationExtractor
 from classifier import ShopClassifier
+from ocrLog.ocr_logger import logText
 import os
 
 ocr_processor = OCRProcessor()
@@ -12,9 +13,11 @@ valid_extensions = {'.jpg', '.jpeg', '.png'}
 
 def process_image(image_path) :
     logger.info(f"Processing: {os.path.basename(image_path)}")
-    
+
     text_lines = ocr_processor.extract_text(image_path)
     logger.info(f"The text identified is: {text_lines}")
+
+    logText(text_lines, image_path)
 
     extracted_data = extractor.extract_fields(text_lines)
 
