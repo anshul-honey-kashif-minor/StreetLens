@@ -5,6 +5,10 @@ import sys
 import uuid
 from pathlib import Path
 
+from hierarchy.build import search_with_fallback, build_category_tree
+
+CATEGORY_NODES = build_category_tree()
+
 import requests
 from flask import Flask, flash, redirect, render_template, request, url_for
 from sqlalchemy import Text, cast, desc, select
@@ -147,7 +151,11 @@ def create_app():
                 if shop_name:
                     query = query.where(Shop.shop_name.ilike(f"%{shop_name}%"))
                 if category:
-                    query = query.where(Shop.category == category)
+                    node = CATEGORY_NODES.get(category)
+                    if node:
+                        shops = search_with_fallback(node, session)
+                    else:
+                        shops = []
                 if phone_number:
                     query = query.where(cast(Shop.phone_number, Text).like(f"%{phone_number}%"))
 
