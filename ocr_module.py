@@ -1,50 +1,79 @@
 import cv2
-import google.genai as genai
-from google.genai import types
-from utils import logger
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+from utils import logger
+
+try:
+    import google.genai as genai
+    from google.genai import types
+except ImportError:  # pragma: no cover - depends on optional runtime dependency
+    genai = None
+    types = None
+
+# Get absolute path to current file → then go to project root
+BASE_DIR = Path(__file__).resolve().parent
+ENV_PATH = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=ENV_PATH)
 
 class OCRProcessor:
     def __init__(self):
-        logger.info("Initializing Google Gemini Vision API...")
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
-        
-        self.client = genai.Client(api_key=api_key)
-        self.model = 'gemini-2.5-flash'
+        if genai is None:
+            logger.warning("google-genai is not installed; Gemini OCR will be unavailable.")
+            self.client = None
+        elif not api_key:
+            logger.warning("GEMINI_API_KEY not set; Gemini OCR will be unavailable.")
+            self.client = None
+        else:
+            logger.info("Initializing Google Gemini Vision API...")
+            self.client = genai.Client(api_key=api_key)
+        self.model = "gemini-2.5-flash"
 
     def preprocess_image(self, image_path):
-        """Optional: basic preprocessing (resizing for API limits)"""
+        """Resize very large inputs before sending them to Gemini."""
         try:
-            img = cv2.imread(str(image_path))
-            if img is None:
+            image = cv2.imread(str(image_path))
+            if image is None:
                 raise ValueError(f"Could not load image at {image_path}")
-            
-            # Resize if image is too large (Gemini has size limits)
-            height, width = img.shape[:2]
+
+            height, width = image.shape[:2]
             if max(height, width) > 4096:
                 scale = 4096 / max(height, width)
-                new_width = int(width * scale)
-                new_height = int(height * scale)
-                img = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
-            
-            logger.info(f"Image preprocessed: {img.shape}")
-            return img
-        except Exception as e:
-            logger.error(f"Preprocessing failed for {image_path}: {e}")
+                image = cv2.resize(
+                    image,
+                    (int(width * scale), int(height * scale)),
+                    interpolation=cv2.INTER_CUBIC,
+                )
+
+            logger.info(f"Image preprocessed for Gemini: {image.shape}")
+            return image
+        except Exception as exc:
+            logger.error(f"Preprocessing failed for {image_path}: {exc}")
             return None
 
     def extract_text(self, image_path):
-        """Extract text using Google Gemini Vision API"""
+        """Extract text using Gemini Vision and return normalized OCR metadata."""
         try:
-            # Preprocess image
+            if self.client is None or types is None:
+                return {
+                    "text_lines": [],
+                    "line_metadata": [],
+                    "quality_score": 0.0,
+                    "error": "Gemini OCR is unavailable. Check the dependency and API key.",
+                }
+
             processed_img = self.preprocess_image(image_path)
             if processed_img is None:
-                return []
+                return {
+                    "text_lines": [],
+                    "line_metadata": [],
+                    "quality_score": 0.0,
+                    "error": "Could not preprocess the image for Gemini OCR.",
+                }
 
             success, encoded_img = cv2.imencode(
                 ".jpg",
@@ -54,13 +83,20 @@ class OCRProcessor:
 
             if not success:
                 logger.error(f"Could not encode processed image: {image_path}")
-                return []
+                return {
+                    "text_lines": [],
+                    "line_metadata": [],
+                    "quality_score": 0.0,
+                    "error": "Could not encode the image for Gemini OCR.",
+                }
 
-            image_bytes = encoded_img.tobytes()
-            logger.info(f"Encoded image for Gemini: {len(image_bytes)} bytes")
+            logger.info(f"Encoded image for Gemini: {len(encoded_img.tobytes())} bytes")
 
             # Call Gemini API with new syntax (using self.client)
-            message = "Extract all text visible in this shop/storefront image. Return ONLY the text lines found, one per line. Do not include any analysis, just the raw text."
+            message = (
+                "Extract all visible text from this storefront image. "
+                "Return only the detected text lines, one per line."
+            )
             
             # ✅ Use client.models.generate_content instead of model.generate_content
             response = self.client.models.generate_content(
@@ -70,7 +106,7 @@ class OCRProcessor:
                         role="user",
                         parts=[
                             types.Part.from_bytes(
-                                data=image_bytes,
+                                data=encoded_img.tobytes(),
                                 mime_type="image/jpeg",
                             ),
                             types.Part.from_text(message),
@@ -79,17 +115,41 @@ class OCRProcessor:
                 ]
             )
 
-            # Parse response
             if response and response.text:
                 text_lines = [line.strip() for line in response.text.split('\n') if line.strip()]
                 logger.info(f"Extracted {len(text_lines)} lines using Gemini API")
-                return text_lines
-            else:
-                logger.warning("No text extracted from Gemini API")
-                return []
+                return {
+                    "text_lines": text_lines,
+                    "line_metadata": [
+                        {
+                            "text": line,
+                            "confidence": None,
+                            "prominence": max(len(line), 1) * 100,
+                            "variant": "gemini",
+                            "y_center": float(index),
+                            "x_min": 0,
+                        }
+                        for index, line in enumerate(text_lines)
+                    ],
+                    "quality_score": float(sum(len(line) for line in text_lines)),
+                    "error": None,
+                }
 
-        except Exception as e:
-            logger.error(f"Gemini OCR failed for {image_path}: {e}")
+            logger.warning("No text extracted from Gemini API")
+            return {
+                "text_lines": [],
+                "line_metadata": [],
+                "quality_score": 0.0,
+                "error": "Gemini returned no text for this image.",
+            }
+
+        except Exception as exc:
+            logger.error(f"Gemini OCR failed for {image_path}: {exc}")
             import traceback
             logger.error(traceback.format_exc())
-            return []
+            return {
+                "text_lines": [],
+                "line_metadata": [],
+                "quality_score": 0.0,
+                "error": str(exc),
+            }

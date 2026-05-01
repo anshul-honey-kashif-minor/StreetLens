@@ -1,10 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
+{% set current_engine = comparison.get(selected_engine) if comparison else None %}
 <section class="page-head">
   <p class="eyebrow">{{ "Saved record" if mode == "edit" else "Extraction review" }}</p>
   <h1>{{ page_title }}</h1>
-  <p class="lede">Check the extracted values and correct anything that needs a human eye.</p>
+  <p class="lede">
+    {% if comparison %}
+      Both OCR engines ran on the same upload. Compare them, apply the stronger result, then make any final edits before saving.
+    {% else %}
+      Check the extracted values and correct anything that needs a human eye.
+    {% endif %}
+  </p>
 </section>
 
 <section class="review-layout">
@@ -16,48 +23,200 @@
     {% endif %}
   </aside>
 
-  <form class="data-form" action="{{ action_url }}" method="post">
-    <input type="hidden" name="image_path" value="{{ data.image_path or '' }}">
+  <div class="review-stack">
+    {% if comparison %}
+      <section class="comparison-panel">
+        <div class="comparison-head">
+          <div>
+            <p class="eyebrow">Dual OCR comparison</p>
+            <h2>Choose the stronger extraction</h2>
+          </div>
+          <p class="comparison-note">The form below stays editable after you apply either engine.</p>
+        </div>
 
-    <label class="field">
-      <span>Shop name <strong aria-label="required">*</strong></span>
-      <input name="shop_name" value="{{ data.shop_name or '' }}" required maxlength="255">
-    </label>
+        <div class="comparison-grid">
+          {% for engine_key, result in comparison.items() %}
+            <article
+              class="comparison-card{% if engine_key == selected_engine %} is-selected{% endif %}"
+              data-engine-card="{{ engine_key }}"
+            >
+              <div class="comparison-card-top">
+                <div>
+                  <p class="comparison-label">{{ result.engine_label }}</p>
+                  <h3>{{ "Ready" if result.status == "success" else "Needs attention" }}</h3>
+                </div>
+                <button
+                  type="button"
+                  class="comparison-apply"
+                  data-engine-select="{{ engine_key }}"
+                  {% if result.status != "success" %}disabled{% endif %}
+                >
+                  {{ "Use This Result" if result.status == "success" else "Unavailable" }}
+                </button>
+              </div>
 
-    <label class="field">
-      <span>Phone number</span>
-      <textarea name="phone_number" rows="2" placeholder="Separate multiple numbers with commas">{{ data.phone_number_text or '' }}</textarea>
-    </label>
+              {% if result.error %}
+                <p class="comparison-error">{{ result.error }}</p>
+              {% else %}
+                <dl class="comparison-fields">
+                  <div>
+                    <dt>Shop</dt>
+                    <dd>{{ result.shop_name or "Not found" }}</dd>
+                  </div>
+                  <div>
+                    <dt>Phones</dt>
+                    <dd>{{ result.phone_number_text or "Not found" }}</dd>
+                  </div>
+                  <div>
+                    <dt>Category</dt>
+                    <dd>{{ result.category or "Not found" }}</dd>
+                  </div>
+                  <div>
+                    <dt>GST</dt>
+                    <dd>{{ result.gst_number or "Not found" }}</dd>
+                  </div>
+                  <div class="full-width">
+                    <dt>Address</dt>
+                    <dd>{{ result.address or "Not found" }}</dd>
+                  </div>
+                </dl>
 
-    <label class="field">
-      <span>Category</span>
-      <input name="category" value="{{ data.category or '' }}" maxlength="120">
-    </label>
+                <div class="comparison-meta">
+                  <span>{{ result.line_count }} text lines</span>
+                  {% if result.timing_ms %}
+                    <span>{{ result.timing_ms }} ms</span>
+                  {% endif %}
+                  {% if result.quality_score %}
+                    <span>quality {{ "%.1f"|format(result.quality_score) }}</span>
+                  {% endif %}
+                </div>
 
-    <label class="field">
-      <span>Address</span>
-      <textarea name="address" rows="3">{{ data.address or '' }}</textarea>
-    </label>
+                <details class="comparison-text">
+                  <summary>Show extracted text</summary>
+                  <pre>{{ result.extracted_text or "No text returned." }}</pre>
+                </details>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
 
-    <label class="field">
-      <span>GST number</span>
-      <input name="gst_number" value="{{ data.gst_number or '' }}" maxlength="50">
-    </label>
+    <form class="data-form" action="{{ action_url }}" method="post">
+      <input type="hidden" name="image_path" value="{{ data.image_path or '' }}">
+      <input type="hidden" name="selected_engine" value="{{ selected_engine or '' }}">
+      <textarea name="comparison_payload" hidden>{{ comparison_payload or '' }}</textarea>
 
-    <label class="field">
-      <span>Miscellaneous data</span>
-      <textarea name="miscellaneous_data" rows="5" placeholder='{"email": "name@example.com"}'>{{ data.miscellaneous_text or '' }}</textarea>
-    </label>
+      {% if comparison %}
+        <div class="selection-banner">
+          Applying
+          <strong id="selectedEngineLabel">{{ current_engine.engine_label if current_engine else "manual review" }}</strong>
+          to the editable form below.
+        </div>
+      {% endif %}
 
-    <label class="field">
-      <span>Extracted text</span>
-      <textarea name="extracted_text" rows="4">{{ data.extracted_text or '' }}</textarea>
-    </label>
+      <label class="field">
+        <span>Shop name <strong aria-label="required">*</strong></span>
+        <input id="shopNameField" name="shop_name" value="{{ data.shop_name or '' }}" required maxlength="255">
+      </label>
 
-    <div class="form-actions">
-      <button type="submit">{{ submit_label }}</button>
-      <a class="button-secondary" href="{{ url_for('search') }}">Search Records</a>
-    </div>
-  </form>
+      <label class="field">
+        <span>Phone number</span>
+        <textarea id="phoneField" name="phone_number" rows="2" placeholder="Separate multiple numbers with commas">{{ data.phone_number_text or '' }}</textarea>
+      </label>
+
+      <label class="field">
+        <span>Category</span>
+        <input id="categoryField" name="category" value="{{ data.category or '' }}" maxlength="120">
+      </label>
+
+      <label class="field">
+        <span>Address</span>
+        <textarea id="addressField" name="address" rows="3">{{ data.address or '' }}</textarea>
+      </label>
+
+      <label class="field">
+        <span>GST number</span>
+        <input id="gstField" name="gst_number" value="{{ data.gst_number or '' }}" maxlength="50">
+      </label>
+
+      <label class="field">
+        <span>Miscellaneous data</span>
+        <textarea id="miscField" name="miscellaneous_data" rows="5" placeholder='{"email": "name@example.com"}'>{{ data.miscellaneous_text or '' }}</textarea>
+      </label>
+
+      <label class="field">
+        <span>Extracted text</span>
+        <textarea id="textField" name="extracted_text" rows="6">{{ data.extracted_text or '' }}</textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit">{{ submit_label }}</button>
+        <a class="button-secondary" href="{{ url_for('search') }}">Search Records</a>
+      </div>
+    </form>
+  </div>
 </section>
+
+{% if comparison %}
+  <script>
+    const comparisonData = {{ comparison|tojson }};
+    const selectedEngineInput = document.querySelector('input[name="selected_engine"]');
+    const selectedEngineLabel = document.getElementById("selectedEngineLabel");
+    const comparisonCards = document.querySelectorAll("[data-engine-card]");
+    const comparisonButtons = document.querySelectorAll("[data-engine-select]");
+
+    const fields = {
+      shop_name: document.getElementById("shopNameField"),
+      phone_number: document.getElementById("phoneField"),
+      category: document.getElementById("categoryField"),
+      address: document.getElementById("addressField"),
+      gst_number: document.getElementById("gstField"),
+      miscellaneous_data: document.getElementById("miscField"),
+      extracted_text: document.getElementById("textField"),
+    };
+
+    function stringifyMiscellaneous(value) {
+      if (!value || (typeof value === "object" && Object.keys(value).length === 0)) {
+        return "";
+      }
+      return JSON.stringify(value, null, 2);
+    }
+
+    function updateSelectedCard(engineKey) {
+      comparisonCards.forEach((card) => {
+        card.classList.toggle("is-selected", card.dataset.engineCard === engineKey);
+      });
+    }
+
+    function applyEngine(engineKey) {
+      const result = comparisonData[engineKey];
+      if (!result || result.status !== "success") {
+        return;
+      }
+
+      fields.shop_name.value = result.shop_name || "";
+      fields.phone_number.value = result.phone_number_text || "";
+      fields.category.value = result.category || "";
+      fields.address.value = result.address || "";
+      fields.gst_number.value = result.gst_number || "";
+      fields.miscellaneous_data.value = stringifyMiscellaneous(result.miscellaneous_data);
+      fields.extracted_text.value = result.extracted_text || "";
+
+      selectedEngineInput.value = engineKey;
+      if (selectedEngineLabel) {
+        selectedEngineLabel.textContent = result.engine_label || engineKey;
+      }
+      updateSelectedCard(engineKey);
+    }
+
+    comparisonButtons.forEach((button) => {
+      button.addEventListener("click", () => applyEngine(button.dataset.engineSelect));
+    });
+
+    if (selectedEngineInput.value) {
+      updateSelectedCard(selectedEngineInput.value);
+    }
+  </script>
+{% endif %}
 {% endblock %}

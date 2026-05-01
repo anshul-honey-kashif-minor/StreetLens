@@ -150,7 +150,9 @@ class ShopClassifier:
             ],
             "printing": [
                 "printing", "print", "press", "newspaper", "magazine",
-                "publishing", "photostat"
+                "publishing", "photostat", "photocopy", "copier", "copy center",
+                "print out", "color print", "colour print", "b/w print", "binding",
+                "plotting", "xerox"
             ],
             "internet_cafe": [
                 "internet cafe", "cyber cafe", "computer center", "broadband",

@@ -12,6 +12,13 @@ The FastAPI backend exposes:
 POST /image-analyzer
 ```
 
+The backend now runs two OCR engines in parallel for each upload:
+
+- `Gemini Vision`
+- `EasyOCR`
+
+The response includes a comparison payload plus a default selected result. The Flask frontend shows both outputs side by side so the user can apply either one into the editable review form.
+
 Start the Flask frontend in another terminal:
 
 ```cmd
@@ -39,4 +46,12 @@ Optional environment overrides:
 STREETLENS_API_URL=http://127.0.0.1:8000/image-analyzer
 STREETLENS_DATABASE_URL=mysql+pymysql://root:mysql@localhost/streetlens?charset=utf8mb4
 STREETLENS_FLASK_PORT=5000
+EASYOCR_LANGUAGES=en,hi
+EASYOCR_GPU=0
 ```
+
+Notes:
+
+- EasyOCR may download model weights on first run.
+- For mixed English and Hindi storefronts, the default language list is `en,hi`.
+- `EASYOCR_GPU=1` should only be enabled when CUDA-ready PyTorch is installed.

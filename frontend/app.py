@@ -65,10 +65,13 @@ def create_app():
             flash(f"Image analysis failed: {exc}", "error")
             return redirect(url_for("index"))
 
-        if api_data.get("error"):
+        if api_data.get("error") and not api_data.get("comparison"):
             saved_path.unlink(missing_ok=True)
             flash(api_data["error"], "error")
             return redirect(url_for("index"))
+
+        if api_data.get("error"):
+            flash(api_data["error"], "error")
 
         extracted_data = _normalize_api_response(api_data)
         extracted_data["image_path"] = f"uploads/{saved_filename}"
@@ -76,15 +79,19 @@ def create_app():
             "result.html",
             action_url=url_for("save_shop"),
             data=extracted_data,
+            comparison=extracted_data.get("comparison", {}),
+            comparison_payload=extracted_data.get("comparison_payload", ""),
             image_url=url_for("static", filename=f"uploads/{saved_filename}"),
             mode="new",
             page_title="Review Extracted Data",
+            selected_engine=extracted_data.get("selected_engine", ""),
             submit_label="Save",
         )
 
     @app.post("/shops")
     def save_shop():
         form_data, errors = _shop_form_data(request.form)
+        comparison, selected_engine, comparison_payload = _comparison_state_from_form(request.form)
         if errors:
             for error in errors:
                 flash(error, "error")
@@ -94,7 +101,10 @@ def create_app():
                     url_for("save_shop"),
                     "new",
                     "Save",
+                    comparison=comparison,
+                    comparison_payload=comparison_payload,
                     miscellaneous_text=request.form.get("miscellaneous_data", ""),
+                    selected_engine=selected_engine,
                 ),
                 400,
             )
@@ -114,7 +124,10 @@ def create_app():
                     url_for("save_shop"),
                     "new",
                     "Save",
+                    comparison=comparison,
+                    comparison_payload=comparison_payload,
                     miscellaneous_text=request.form.get("miscellaneous_data", ""),
+                    selected_engine=selected_engine,
                 ),
                 500,
             )
@@ -184,15 +197,19 @@ def create_app():
             "result.html",
             action_url=url_for("update_shop", shop_id=shop_id),
             data=data,
+            comparison={},
+            comparison_payload="",
             image_url=_image_url(data.get("image_path")),
             mode="edit",
             page_title="Edit Saved Data",
+            selected_engine="",
             submit_label="Update",
         )
 
     @app.post("/shops/<int:shop_id>")
     def update_shop(shop_id):
         form_data, errors = _shop_form_data(request.form)
+        comparison, selected_engine, comparison_payload = _comparison_state_from_form(request.form)
         if errors:
             for error in errors:
                 flash(error, "error")
@@ -203,7 +220,10 @@ def create_app():
                     "edit",
                     "Update",
                     shop_id=shop_id,
+                    comparison=comparison,
+                    comparison_payload=comparison_payload,
                     miscellaneous_text=request.form.get("miscellaneous_data", ""),
+                    selected_engine=selected_engine,
                 ),
                 400,
             )
@@ -228,7 +248,10 @@ def create_app():
                     "edit",
                     "Update",
                     shop_id=shop_id,
+                    comparison=comparison,
+                    comparison_payload=comparison_payload,
                     miscellaneous_text=request.form.get("miscellaneous_data", ""),
+                    selected_engine=selected_engine,
                 ),
                 500,
             )
@@ -301,20 +324,65 @@ def _send_to_fastapi(path, original_filename, mimetype, endpoint, timeout):
 
 
 def _normalize_api_response(api_data):
-    miscellaneous_data = api_data.get("miscellaneous_data", api_data.get("miscellaneous", {}))
-    phone_numbers = _coerce_phone_numbers(api_data.get("phone_number", []))
+    comparison = {
+        engine_key: _normalize_engine_response(engine_key, payload)
+        for engine_key, payload in (api_data.get("comparison") or {}).items()
+    }
+    selected_engine = api_data.get("selected_engine", "").strip()
+
+    if comparison:
+        successful_engines = [
+            engine_key
+            for engine_key, payload in comparison.items()
+            if payload["status"] == "success"
+        ]
+        if successful_engines:
+            if selected_engine not in successful_engines:
+                selected_engine = successful_engines[0]
+            selected_payload = comparison[selected_engine]
+        else:
+            selected_engine = ""
+            selected_payload = _normalize_engine_response("selected", api_data)
+    else:
+        selected_payload = _normalize_engine_response("selected", api_data)
+        selected_engine = selected_engine or "selected"
 
     return {
-        "shop_name": _clean_text(api_data.get("shop_name")),
+        **selected_payload,
+        "comparison": comparison,
+        "comparison_payload": _json_text(comparison) if comparison else "",
+        "image_path": "",
+        "selected_engine": selected_engine,
+    }
+
+
+def _normalize_engine_response(engine_key, payload):
+    miscellaneous_data = payload.get("miscellaneous_data", payload.get("miscellaneous", {})) or {}
+    phone_numbers = _coerce_phone_numbers(payload.get("phone_number", []))
+    status = (payload.get("status") or ("error" if payload.get("error") else "success")).strip().lower()
+    extracted_text = _clean_text(payload.get("extracted_text"))
+
+    return {
+        "engine_key": engine_key,
+        "engine_label": (
+            payload.get("display_name")
+            or payload.get("engine_label")
+            or engine_key.replace("_", " ").title()
+        ),
+        "status": status,
+        "error": _clean_text(payload.get("error")),
+        "shop_name": _clean_text(payload.get("shop_name")),
         "phone_number": phone_numbers,
         "phone_number_text": ", ".join(phone_numbers),
-        "category": _clean_text(api_data.get("category")),
-        "address": _clean_text(api_data.get("address")),
-        "gst_number": _clean_text(api_data.get("gst_number")),
-        "miscellaneous_data": miscellaneous_data or {},
-        "miscellaneous_text": _json_text(miscellaneous_data or {}),
-        "extracted_text": _clean_text(api_data.get("extracted_text")),
-        "image_path": "",
+        "category": _clean_text(payload.get("category")),
+        "address": _clean_text(payload.get("address")),
+        "gst_number": _clean_text(payload.get("gst_number")),
+        "miscellaneous_data": miscellaneous_data,
+        "miscellaneous_text": _json_text(miscellaneous_data),
+        "extracted_text": extracted_text,
+        "line_count": int(payload.get("line_count") or len([line for line in extracted_text.splitlines() if line.strip()])),
+        "quality_score": float(payload.get("quality_score") or 0.0),
+        "timing_ms": payload.get("timing_ms"),
     }
 
 
@@ -356,6 +424,33 @@ def _coerce_phone_numbers(value):
     return _parse_phone_numbers(str(value))
 
 
+def _comparison_state_from_form(form):
+    payload_text = form.get("comparison_payload", "").strip()
+    selected_engine = form.get("selected_engine", "").strip()
+    if not payload_text:
+        return {}, selected_engine, ""
+
+    try:
+        raw_payload = json.loads(payload_text)
+    except json.JSONDecodeError:
+        return {}, selected_engine, ""
+
+    comparison = {
+        engine_key: _normalize_engine_response(engine_key, payload)
+        for engine_key, payload in raw_payload.items()
+    }
+    if selected_engine not in comparison and comparison:
+        selected_engine = next(
+            (
+                engine_key
+                for engine_key, payload in comparison.items()
+                if payload["status"] == "success"
+            ),
+            next(iter(comparison)),
+        )
+    return comparison, selected_engine, _json_text(comparison)
+
+
 def _shop_to_form_data(shop):
     phone_numbers = shop.phone_number or []
     miscellaneous_data = shop.miscellaneous_data or {}
@@ -375,7 +470,15 @@ def _shop_to_form_data(shop):
 
 
 def _render_result_from_form(
-    form_data, action_url, mode, submit_label, shop_id=None, miscellaneous_text=None
+    form_data,
+    action_url,
+    mode,
+    submit_label,
+    shop_id=None,
+    comparison=None,
+    comparison_payload="",
+    miscellaneous_text=None,
+    selected_engine="",
 ):
     data = {
         **form_data,
@@ -390,9 +493,12 @@ def _render_result_from_form(
         "result.html",
         action_url=action_url,
         data=data,
+        comparison=comparison or {},
+        comparison_payload=comparison_payload,
         image_url=_image_url(data.get("image_path")),
         mode=mode,
         page_title="Review Extracted Data" if mode == "new" else "Edit Saved Data",
+        selected_engine=selected_engine,
         shop_id=shop_id,
         submit_label=submit_label,
     )
