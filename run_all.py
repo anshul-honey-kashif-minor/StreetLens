@@ -10,7 +10,7 @@ def start_fastapi():
 
 def start_flask():
     return subprocess.Popen(
-        ["python", "frontend/app.py"],
+        ["python", "-m", "frontend.app"],
         stdout=sys.stdout,
         stderr=sys.stderr
     )

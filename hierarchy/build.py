@@ -1,4 +1,4 @@
-from cat_tree import CategoryNode
+from .cat_tree import CategoryNode
 from database.models import Shop
 
 def build_category_tree():

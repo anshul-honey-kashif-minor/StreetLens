@@ -1,5 +1,7 @@
 ## To Run
-
+```cmd
+python run_app.py
+```
 Start the FastAPI backend:
 
 ```cmd
