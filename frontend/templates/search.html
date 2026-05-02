@@ -9,10 +9,11 @@
 </head>
 <body>
     <header>
-        <h1>StreetLens</h1>
+        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
         <nav>
             <a href="{{ url_for('index') }}">Upload</a>
             <a href="{{ url_for('search') }}">Search</a>
+            <a href="{{ url_for('nearby') }}">Near Me</a>
         </nav>
     </header>
 

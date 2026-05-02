@@ -198,6 +198,29 @@ def create_app():
             shops=shops,
         )
 
+    @app.get("/nearby")
+    def nearby():
+        return render_template("nearby.html")
+
+    @app.get("/api/nearby")
+    def api_nearby():
+        params = request.args.to_dict()
+        fastapi_base = os.getenv("STREETLENS_API_URL", "http://127.0.0.1:8000").replace("/image-analyzer", "")
+        try:
+            response = requests.get(f"{fastapi_base.rstrip('/')}/nearby", params=params, timeout=10)
+            return response.json(), response.status_code
+        except requests.RequestException as e:
+            return {"error": str(e)}, 500
+
+    @app.get("/api/nearby/categories")
+    def api_nearby_categories():
+        fastapi_base = os.getenv("STREETLENS_API_URL", "http://127.0.0.1:8000").replace("/image-analyzer", "")
+        try:
+            response = requests.get(f"{fastapi_base.rstrip('/')}/nearby/categories", timeout=10)
+            return response.json(), response.status_code
+        except requests.RequestException as e:
+            return {"error": str(e)}, 500
+
     @app.get("/shops/<int:shop_id>/edit")
     def edit_shop(shop_id):
         try:

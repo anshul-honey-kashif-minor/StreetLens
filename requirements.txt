@@ -9,7 +9,7 @@ uvicorn[standard]
 python-multipart
 Flask
 SQLAlchemy
-PyMySQL
+psycopg2-binary
 requests
 thefuzz
 python-Levenshtein

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreetLens - Near Me</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { overflow: hidden; }
+
+        main {
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .nearby-wrapper {
+            display: flex;
+            height: calc(100vh - 60px);
+        }
+
+        /* ── Left sidebar ── */
+        .nearby-sidebar {
+            width: 420px;
+            min-width: 360px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--glass-border);
+            overflow: hidden;
+        }
+
+        .nearby-controls {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .controls-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .controls-row .form-group label {
+            font-size: 0.8rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .controls-row select,
+        .controls-row input[type="text"] {
+            padding: 0.6rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        /* Distance slider */
+        .distance-control {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .distance-control label {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .distance-control input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+        }
+
+        .distance-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent-gradient);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
+        }
+
+        .distance-value {
+            color: var(--accent-purple);
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 55px;
+            text-align: right;
+        }
+
+        /* Results list */
+        .nearby-results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem 1.25rem;
+        }
+
+        .nearby-results::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nearby-results::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .nearby-results::-webkit-scrollbar-thumb {
+            background: rgba(139, 92, 246, 0.3);
+            border-radius: 3px;
+        }
+
+        .shop-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .shop-card:hover {
+            border-color: var(--border-focus);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+        }
+
+        .shop-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .shop-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        .shop-distance {
+            background: var(--accent-gradient);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .shop-category-badge {
+            display: inline-block;
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            padding: 0.15rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+        }
+
+        .shop-card-detail {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin: 0.15rem 0;
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .shop-card-detail span {
+            opacity: 0.6;
+        }
+
+        /* Status / empty */
+        .status-message {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-muted);
+        }
+
+        .status-message .status-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* Load more */
+        .load-more-wrap {
+            padding: 0.75rem 1.25rem 1.25rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .load-more-btn {
+            width: 100%;
+            padding: 0.7rem;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-family);
+        }
+
+        .load-more-btn:hover:not(:disabled) {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: var(--border-focus);
+        }
+
+        .load-more-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ── Map ── */
+        .nearby-map {
+            flex: 1;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Pulsing user dot */
+        .user-marker {
+            width: 18px;
+            height: 18px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 0 rgba(59, 130, 246, 0.4);
+            animation: userPulse 2s infinite;
+        }
+
+        @keyframes userPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+            70%  { box-shadow: 0 0 0 14px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        /* Custom leaflet popups */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-secondary) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .leaflet-popup-tip {
+            background: var(--bg-secondary) !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 10px 14px !important;
+            font-family: var(--font-family) !important;
+            font-size: 0.85rem !important;
+        }
+
+        .leaflet-popup-content b {
+            color: var(--accent-purple);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nearby-wrapper {
+                flex-direction: column;
+            }
+            .nearby-sidebar {
+                width: 100%;
+                min-width: 0;
+                height: 50%;
+            }
+            .nearby-map {
+                height: 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
+        <nav>
+            <a href="{{ url_for('index') }}">Upload</a>
+            <a href="{{ url_for('search') }}">Search</a>
+            <a href="{{ url_for('nearby') }}">Near Me</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="nearby-wrapper">
+            <!-- Sidebar -->
+            <div class="nearby-sidebar">
+                <div class="nearby-controls">
+                    <div class="controls-row">
+                        <div class="form-group">
+                            <label for="search-input">Search</label>
+                            <input type="text" id="search-input" placeholder="Shop name or address…">
+                        </div>
+                        <div class="form-group">
+                            <label for="category-select">Category</label>
+                            <select id="category-select">
+                                <option value="All">All Categories</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="distance-control">
+                        <label for="distance-range">Radius</label>
+                        <input type="range" id="distance-range" min="1" max="100" value="50">
+                        <span class="distance-value" id="distance-value">50 km</span>
+                    </div>
+                </div>
+
+                <div class="nearby-results" id="results-container">
+                    <div class="status-message" id="status-msg">
+                        <div class="status-icon">📍</div>
+                        <p>Requesting location access…</p>
+                    </div>
+                </div>
+
+                <div class="load-more-wrap" id="load-more-container" style="display: none;">
+                    <button class="load-more-btn" id="load-more-btn">See more</button>
+                </div>
+            </div>
+
+            <!-- Map -->
+            <div class="nearby-map">
+                <div id="map"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        /* ── State ── */
+        let map = null;
+        let markers = [];
+        let userMarker = null;
+        let userLat = null, userLon = null;
+        let currentOffset = 0;
+        const limit = 5;
+        let totalAvailable = 0;
+        let shopDataList = [];
+        let debounceTimer = null;
+
+        /* ── DOM refs ── */
+        const statusMsg       = document.getElementById('status-msg');
+        const resultsContainer = document.getElementById('results-container');
+        const loadMoreBtn     = document.getElementById('load-more-btn');
+        const loadMoreWrap    = document.getElementById('load-more-container');
+        const categorySelect  = document.getElementById('category-select');
+        const searchInput     = document.getElementById('search-input');
+        const distanceRange   = document.getElementById('distance-range');
+        const distanceValue   = document.getElementById('distance-value');
+
+        /* ── Load categories from DB ── */
+        fetch('/api/nearby/categories')
+            .then(r => r.json())
+            .then(data => {
+                (data.categories || []).forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat;
+                    categorySelect.appendChild(opt);
+                });
+            });
+
+        /* ── Distance slider ── */
+        distanceRange.addEventListener('input', () => {
+            distanceValue.textContent = distanceRange.value + ' km';
+        });
+        distanceRange.addEventListener('change', () => {
+            if (userLat !== null) fetchShops(true);
+        });
+
+        /* ── Search debounce ── */
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if (userLat !== null) fetchShops(true);
+            }, 400);
+        });
+
+        /* ── Category change ── */
+        categorySelect.addEventListener('change', () => {
+            if (userLat !== null) fetchShops(true);
+        });
+
+        /* ── Load more ── */
+        loadMoreBtn.addEventListener('click', () => fetchShops(false));
+
+        /* ── Geolocation ── */
+        if (!navigator.geolocation) {
+            showStatus('🚫', 'Geolocation is not supported by your browser.');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                userLat = pos.coords.latitude;
+                userLon = pos.coords.longitude;
+                initMap();
+                fetchShops(true);
+            },
+            () => showStatus('🚫', 'Location access denied. Please allow location permission and reload.')
+        );
+
+        /* ── Map init ── */
+        function initMap() {
+            map = L.map('map', { zoomControl: true }).setView([userLat, userLon], 13);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors, &copy; CARTO'
+            }).addTo(map);
+
+            const pulsingIcon = L.divIcon({
+                className: 'user-marker',
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+
+            userMarker = L.marker([userLat, userLon], { icon: pulsingIcon, zIndexOffset: 1000 }).addTo(map);
+            userMarker.bindPopup('<b>You are here</b>');
+        }
+
+        /* ── Fetch shops ── */
+        function fetchShops(reset) {
+            if (reset) {
+                currentOffset = 0;
+                shopDataList = [];
+                markers.forEach(m => map.removeLayer(m.marker));
+                markers = [];
+                resultsContainer.innerHTML = '';
+                showStatus('🔍', 'Loading nearest shops…');
+                loadMoreWrap.style.display = 'none';
+            }
+
+            const category = categorySelect.value;
+            const maxDist  = distanceRange.value;
+            const search   = searchInput.value.trim();
+
+            let url = `/api/nearby?lat=${userLat}&lon=${userLon}&limit=${limit}&offset=${currentOffset}&max_distance=${maxDist}`;
+            if (category !== 'All') url += `&category=${encodeURIComponent(category)}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'Loading…';
+
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    hideStatus();
+                    totalAvailable = data.total || 0;
+
+                    if (data.results && data.results.length > 0) {
+                        renderShops(data.results);
+                        currentOffset += limit;
+                    } else if (reset) {
+                        showStatus('📭', 'No shops found matching your filters.');
+                    }
+
+                    if (currentOffset < totalAvailable) {
+                        loadMoreWrap.style.display = 'block';
+                        loadMoreBtn.disabled = false;
+                        loadMoreBtn.textContent = `See more (${totalAvailable - currentOffset} remaining)`;
+                    } else {
+                        loadMoreWrap.style.display = 'none';
+                    }
+                })
+                .catch(() => showStatus('⚠️', 'Error fetching shop data.'));
+        }
+
+        /* ── Render shop cards ── */
+        function renderShops(shops) {
+            shops.forEach(shop => {
+                shopDataList.push(shop);
+                const idx = shopDataList.length - 1;
+
+                const card = document.createElement('div');
+                card.className = 'shop-card';
+                card.innerHTML = `
+                    <div class="shop-card-header">
+                        <h3>${escHtml(shop.shop_name)}</h3>
+                        <span class="shop-distance">${shop.distance_km} km</span>
+                    </div>
+                    ${shop.category ? `<span class="shop-category-badge">${escHtml(shop.category)}</span>` : ''}
+                    ${shop.address ? `<p class="shop-card-detail"><span>📍</span> ${escHtml(shop.address)}</p>` : ''}
+                    ${shop.phone_number && shop.phone_number.length ? `<p class="shop-card-detail"><span>📞</span> ${escHtml(shop.phone_number.join(', '))}</p>` : ''}
+                `;
+                card.addEventListener('click', () => {
+                    map.flyTo([shop.latitude, shop.longitude], 16, { duration: 0.8 });
+                    markers[idx].marker.openPopup();
+                });
+                resultsContainer.appendChild(card);
+
+                // Red marker
+                const redIcon = L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+                });
+                const marker = L.marker([shop.latitude, shop.longitude], { icon: redIcon }).addTo(map);
+                marker.bindPopup(`<b>${escHtml(shop.shop_name)}</b><br>${shop.distance_km} km away`);
+                markers.push({ shop, marker });
+            });
+
+            // Fit bounds
+            const bounds = L.latLngBounds([[userLat, userLon]]);
+            markers.forEach(m => bounds.extend([m.shop.latitude, m.shop.longitude]));
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+        }
+
+        /* ── Helpers ── */
+        function showStatus(icon, text) {
+            statusMsg.style.display = 'block';
+            statusMsg.innerHTML = `<div class="status-icon">${icon}</div><p>${text}</p>`;
+        }
+        function hideStatus() { statusMsg.style.display = 'none'; }
+
+        function escHtml(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    });
+    </script>
+</body>
+</html>

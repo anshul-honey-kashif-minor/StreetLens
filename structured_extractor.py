@@ -61,11 +61,16 @@ class InformationExtractor:
 
         lat, lng = self._extract_coordinates(full_text)
 
+        address = self._extract_address(clean_lines)
+        # Fallback: use geotagged watermark address if banner address not found
+        if address == "NA":
+            address = self._extract_watermark_address(clean_lines)
+
         return {
             "shop_name": self._extract_shop_name(clean_lines, line_metadata, engine),
             "phone_number": self._extract_phones(full_text),
             "email": self._extract_email(full_text),
-            "address": self._extract_address(clean_lines),
+            "address": address,
             "gst_number": self._extract_gst(full_text),
             "website": self._extract_website(full_text),
             "latitude": lat,
@@ -251,6 +256,58 @@ Ignore services, phone numbers, GST, address.
                 return round(val1, 6), round(val2, 6)
 
         return None, None
+
+    # ================= WATERMARK ADDRESS FALLBACK =================
+    def _extract_watermark_address(self, lines):
+        """Extract address from geotagged watermark text when banner has no address.
+        
+        Watermark lines typically look like:
+          'Noida, Uttar Pradesh, India 🇮🇳'
+          '309, 3rd Floor Ithum, A-40, Tower-a, Block A, Industrial Area, Sector 62, Noida, Uttar Pradesh 201309, India'
+        """
+        # Common location indicators found in watermarks
+        location_keywords = [
+            "india", "delhi", "noida", "mumbai", "pune", "bangalore", "bengaluru",
+            "chennai", "kolkata", "hyderabad", "ahmedabad", "jaipur", "lucknow",
+            "chandigarh", "gurgaon", "gurugram", "faridabad", "ghaziabad",
+            "uttar pradesh", "haryana", "rajasthan", "madhya pradesh",
+            "maharashtra", "karnataka", "tamil nadu", "west bengal", "telangana",
+            "gujarat", "punjab", "bihar", "u.p.", "m.p.",
+        ]
+        pin_pattern = re.compile(r"\b\d{6}\b")
+
+        # Skip lines that are clearly metadata (lat/long, date/time, GPS labels)
+        skip_patterns = [
+            re.compile(r"(?:lat|long|lng)", re.IGNORECASE),
+            re.compile(r"\d{2}/\d{2}/\d{4}"),       # dates
+            re.compile(r"\d{2}:\d{2}:\d{2}"),         # times
+            re.compile(r"gps\s*map\s*camera", re.IGNORECASE),
+            re.compile(r"google", re.IGNORECASE),
+        ]
+
+        candidates = []
+        for line in lines:
+            low = line.lower()
+
+            # Skip GPS metadata lines
+            if any(sp.search(line) for sp in skip_patterns):
+                continue
+
+            has_location = any(kw in low for kw in location_keywords)
+            has_pin = bool(pin_pattern.search(line))
+
+            if has_location or has_pin:
+                # Prefer longer, more complete address lines
+                candidates.append((len(line), line))
+
+        if candidates:
+            # Pick the longest matching line (usually the full street address)
+            best = max(candidates, key=lambda x: x[0])[1]
+            # Clean emoji flags and extra whitespace
+            best = re.sub(r"[\U0001F1E0-\U0001F1FF]+", "", best).strip()
+            return best
+
+        return "NA"
 
     # ================= UTILS =================
     def _norm(self, text):

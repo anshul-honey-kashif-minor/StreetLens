@@ -14,6 +14,11 @@ It compares the results of two advanced OCR and AI engines (EasyOCR and Gemini V
 
 ## Setup
 
+0. **Kill port 8000 if in use:**
+```bash
+netstat -ano | Select-String ":8000.*LISTENING" | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique | ForEach-Object { taskkill /F /PID $_ }
+```
+
 1. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
