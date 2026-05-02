@@ -77,22 +77,16 @@ class EasyOCRProcessor:
             gray = cv2.resize(gray, None, fx=gray_scale, fy=gray_scale, interpolation=cv2.INTER_CUBIC)
 
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(gray)
-        denoised = cv2.fastNlMeansDenoising(clahe, None, 12, 7, 21)
 
-        sharpened = cv2.addWeighted(
-            denoised,
-            1.35,
-            cv2.GaussianBlur(denoised, (0, 0), 1.0),
-            -0.35,
-            0,
-        )
+        # Bilateral filter preserves edges while removing noise — great for signboards
+        bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
 
+        # Only 3 variants for speed: color (catches everything), clahe (contrast),
+        # bilateral (edge-preserved denoising)
         return {
             "color": (resized, 1.0, 1.0),
-            "gray": (gray, gray_scale, gray_scale),
             "clahe": (clahe, gray_scale, gray_scale),
-            "denoised": (denoised, gray_scale, gray_scale),
-            "sharpened": (sharpened, gray_scale, gray_scale),
+            "bilateral": (bilateral, gray_scale, gray_scale),
         }
 
     def _read_variant(self, reader, image_variant):
@@ -101,19 +95,19 @@ class EasyOCRProcessor:
             detail=1,
             paragraph=False,
             decoder="greedy",
-            contrast_ths=0.05,
-            adjust_contrast=0.7,
-            text_threshold=0.45,
-            low_text=0.2,
-            link_threshold=0.25,
-            canvas_size=2048,
-            mag_ratio=1.2,
-            min_size=10,
-            slope_ths=0.2,
-            ycenter_ths=0.5,
-            height_ths=0.5,
-            width_ths=0.5,
-            add_margin=0.05,
+            contrast_ths=0.03,
+            adjust_contrast=0.8,
+            text_threshold=0.35,
+            low_text=0.15,
+            link_threshold=0.2,
+            canvas_size=2560,
+            mag_ratio=1.5,
+            min_size=8,
+            slope_ths=0.3,
+            ycenter_ths=0.6,
+            height_ths=0.6,
+            width_ths=0.6,
+            add_margin=0.1,
             batch_size=1,
         )
 

@@ -1,57 +1,46 @@
-## To Run
+# StreetLens
 
-Start the FastAPI backend:
+StreetLens is an AI-powered image analysis tool that extracts structured information (Shop Name, Phone Numbers, Address, Category) from images of shop banners and storefronts. 
 
-```cmd
-uvicorn app:app --reload
+It compares the results of two advanced OCR and AI engines (EasyOCR and Gemini Vision) to provide the most accurate data, while allowing human verification before saving to a MySQL database.
+
+## Features
+- **Dual Engine Analysis:** Uses both EasyOCR and Gemini Vision to extract text and details.
+- **Side-by-Side Comparison:** Compare the results of both engines directly in the UI and select the best one.
+- **Human Verification:** Edit the extracted details on a split-screen view containing the original image.
+- **Fuzzy Search:** Search the database of extracted shops with typo-tolerant fuzzy matching.
+- **Modern UI:** Premium dark-mode, glassmorphic design that provides a stunning user experience.
+- **Unified Startup:** Run the entire stack (FastAPI backend + Flask frontend) with a single command.
+
+## Setup
+
+1. **Install Dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Configure Environment variables:**
+   Update your `.env` file with your MySQL credentials and Gemini API Key:
+   ```ini
+   GEMINI_API_KEY=your_api_key_here
+   MYSQL_HOST=127.0.0.1
+   MYSQL_PORT=3306
+   MYSQL_USER=root
+   MYSQL_PASSWORD=mysql
+   MYSQL_DATABASE=streetlens
+   DATABASE_URL=mysql+pymysql://root:mysql@127.0.0.1:3306/streetlens
+   ```
+
+## Usage
+
+Start the entire application using the single `run.py` script:
+
+```bash
+python run.py
 ```
 
-The FastAPI backend exposes:
+This will automatically launch:
+1. The FastAPI Backend on `http://127.0.0.1:8000`
+2. The Flask Frontend on `http://127.0.0.1:5000`
 
-```text
-POST /image-analyzer
-```
-
-The backend now runs two OCR engines in parallel for each upload:
-
-- `Gemini Vision`
-- `EasyOCR`
-
-The response includes a comparison payload plus a default selected result. The Flask frontend shows both outputs side by side so the user can apply either one into the editable review form.
-
-Start the Flask frontend in another terminal:
-
-```cmd
-python frontend/app.py
-```
-
-Open:
-
-```text
-http://127.0.0.1:5000
-```
-
-MySQL defaults:
-
-```text
-host: localhost
-user: root
-password: mysql
-database: streetlens
-```
-
-Optional environment overrides:
-
-```text
-STREETLENS_API_URL=http://127.0.0.1:8000/image-analyzer
-STREETLENS_DATABASE_URL=mysql+pymysql://root:mysql@localhost/streetlens?charset=utf8mb4
-STREETLENS_FLASK_PORT=5000
-EASYOCR_LANGUAGES=en,hi
-EASYOCR_GPU=0
-```
-
-Notes:
-
-- EasyOCR may download model weights on first run.
-- For mixed English and Hindi storefronts, the default language list is `en,hi`.
-- `EASYOCR_GPU=1` should only be enabled when CUDA-ready PyTorch is installed.
+Open your browser to `http://127.0.0.1:5000` to access the UI. Upload an image to see the dual-engine extraction in action!

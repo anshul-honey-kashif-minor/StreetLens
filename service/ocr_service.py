@@ -113,6 +113,8 @@ def _process_with_engine(engine_key, processor, image_path):
         "category": category if category != "General Store" else "",  # ✅ FIXED
         "address": extracted_data["address"] if extracted_data["address"] != "NA" else "",
         "gst_number": extracted_data["gst_number"] if extracted_data["gst_number"] != "NA" else "",
+        "latitude": extracted_data.get("latitude"),
+        "longitude": extracted_data.get("longitude"),
         "miscellaneous_data": miscellaneous,
         "extracted_text": "\n".join(text_lines),
         "text_lines": text_lines,

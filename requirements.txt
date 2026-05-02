@@ -11,3 +11,5 @@ Flask
 SQLAlchemy
 PyMySQL
 requests
+thefuzz
+python-Levenshtein

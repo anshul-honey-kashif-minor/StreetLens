@@ -5,11 +5,14 @@ import sys
 import uuid
 from pathlib import Path
 
+
+
 import requests
 from flask import Flask, flash, redirect, render_template, request, url_for
 from sqlalchemy import Text, cast, desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
+from thefuzz import fuzz
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +36,7 @@ def create_app():
     app.config["FASTAPI_ENDPOINT"] = os.getenv(
         "STREETLENS_API_URL", "http://127.0.0.1:8000/image-analyzer"
     )
-    app.config["FASTAPI_TIMEOUT"] = int(os.getenv("STREETLENS_API_TIMEOUT", "90"))
+    app.config["FASTAPI_TIMEOUT"] = int(os.getenv("STREETLENS_API_TIMEOUT", "300"))
 
     UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
@@ -157,14 +160,30 @@ def create_app():
                 ]
 
                 query = select(Shop)
-                if shop_name:
-                    query = query.where(Shop.shop_name.ilike(f"%{shop_name}%"))
                 if category:
                     query = query.where(Shop.category == category)
-                if phone_number:
-                    query = query.where(cast(Shop.phone_number, Text).like(f"%{phone_number}%"))
 
-                shops = session.scalars(query.order_by(desc(Shop.created_at))).all()
+                all_shops = session.scalars(query.order_by(desc(Shop.created_at))).all()
+                
+                filtered_shops = []
+                for shop in all_shops:
+                    match = True
+                    if shop_name:
+                        score = fuzz.partial_ratio(shop_name.lower(), (shop.shop_name or "").lower())
+                        if score < 60:
+                            match = False
+                            
+                    if match and phone_number:
+                        phone_texts = ", ".join(shop.phone_number or [])
+                        if phone_number not in phone_texts:
+                            score = fuzz.partial_ratio(phone_number, phone_texts)
+                            if score < 70:
+                                match = False
+                                
+                    if match:
+                        filtered_shops.append(shop)
+                        
+                shops = filtered_shops
         except SQLAlchemyError as exc:
             flash(f"Search failed: {exc}", "error")
 
@@ -377,6 +396,8 @@ def _normalize_engine_response(engine_key, payload):
         "category": _clean_text(payload.get("category")),
         "address": _clean_text(payload.get("address")),
         "gst_number": _clean_text(payload.get("gst_number")),
+        "latitude": payload.get("latitude") or "",
+        "longitude": payload.get("longitude") or "",
         "miscellaneous_data": miscellaneous_data,
         "miscellaneous_text": _json_text(miscellaneous_data),
         "extracted_text": extracted_text,
@@ -405,6 +426,8 @@ def _shop_form_data(form):
         "category": form.get("category", "").strip() or None,
         "address": form.get("address", "").strip() or None,
         "gst_number": form.get("gst_number", "").strip() or None,
+        "latitude": _parse_float(form.get("latitude", "")),
+        "longitude": _parse_float(form.get("longitude", "")),
         "miscellaneous_data": miscellaneous_data,
         "extracted_text": form.get("extracted_text", "").strip() or None,
         "image_path": form.get("image_path", "").strip() or None,
@@ -462,6 +485,8 @@ def _shop_to_form_data(shop):
         "category": shop.category or "",
         "address": shop.address or "",
         "gst_number": shop.gst_number or "",
+        "latitude": shop.latitude or "",
+        "longitude": shop.longitude or "",
         "miscellaneous_data": miscellaneous_data,
         "miscellaneous_text": _json_text(miscellaneous_data),
         "extracted_text": shop.extracted_text or "",
@@ -520,6 +545,19 @@ def _json_text(value):
     if not value:
         return ""
     return json.dumps(value, ensure_ascii=False, indent=2)
+
+
+
+
+
+def _parse_float(value):
+    """Parse a string to float, returning None on failure."""
+    if not value or not str(value).strip():
+        return None
+    try:
+        return float(str(value).strip())
+    except (ValueError, TypeError):
+        return None
 
 
 def _search_redirect_url():

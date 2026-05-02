@@ -123,7 +123,7 @@ class OCRProcessor:
                     "line_metadata": [
                         {
                             "text": line,
-                            "confidence": None,
+                            "confidence": 0.85,
                             "prominence": max(len(line), 1) * 100,
                             "variant": "gemini",
                             "y_center": float(index),

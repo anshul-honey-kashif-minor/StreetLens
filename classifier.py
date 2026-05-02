@@ -1,5 +1,14 @@
 from utils import logger
+import os
 import re
+
+try:
+    import google.genai as genai
+except ImportError:
+    genai = None
+
+from dotenv import load_dotenv
+load_dotenv()
 
 class ShopClassifier:
     def __init__(self):
@@ -166,13 +175,19 @@ class ShopClassifier:
         }
 
     def classify(self, text_lines):
-        """Classify shop category using keyword matching with scoring"""
+        """Classify shop category using Gemini first, keyword matching as fallback"""
         try:
             full_text = self._normalize_text(" ".join(text_lines))
             
             logger.info(f"Classifying with text: {full_text[:100]}...")
             
-            # Score each category
+            # Try Gemini-based classification first (more accurate)
+            gemini_result = self._gemini_classify(text_lines)
+            if gemini_result and gemini_result != "General Store":
+                logger.info(f"Gemini classified as: {gemini_result}")
+                return gemini_result
+            
+            # Fallback to keyword scoring
             category_scores = {}
             
             for category, keywords in self.category_map.items():
@@ -198,7 +213,6 @@ class ShopClassifier:
                         'keywords': matched_keywords
                     }
             
-            # If categories found, pick the one with highest matches
             if category_scores:
                 best_category = max(
                     category_scores,
@@ -212,7 +226,6 @@ class ShopClassifier:
                 logger.info(f"Category scores: {category_scores}")
                 logger.info(f"Best category: {best_category} with score {category_scores[best_category]['score']}")
                 
-                # Format category name
                 category_names = {
                     "electrical": "Electrical Store",
                     "real_estate": "Real Estate",
@@ -251,12 +264,47 @@ class ShopClassifier:
                 
                 return category_names.get(best_category, "General Store")
             
+            # If Gemini returned General Store and keywords found nothing, use Gemini result
+            if gemini_result:
+                return gemini_result
+            
             logger.warning("No category matched, returning General Store")
             return "General Store"
 
         except Exception as e:
             logger.error(f"Classification failed: {e}")
             return "General Store"
+
+    def _gemini_classify(self, text_lines):
+        """Use Gemini to classify shop category from text"""
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not genai or not api_key:
+            return None
+        
+        try:
+            client = genai.Client(api_key=api_key)
+            text = "\n".join(text_lines)
+            prompt = f"""Classify this shop/business into ONE category from this list:
+Electrical Store, Real Estate, Medical Store, Restaurant, Electronics Store, Bakery, Salon, Auto Parts Dealer, Clothing Store, Grocery Store, Jewelry Store, Hardware Store, Automotive, Education, Banking, Entertainment, Fitness Center, Beauty Products, Stationery Store, Furniture Store, Toys Store, Travel Agency, Tuition Center, Fast Food, Chinese Restaurant, North Indian Restaurant, South Indian Restaurant, Pizza Restaurant, Cafe, Laundry, Photography Studio, Printing Press, Internet Cafe, General Store
+
+Respond with ONLY the category name, nothing else.
+
+Shop text:
+{text}
+"""
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=[{"role": "user", "parts": [{"text": prompt}]}],
+            )
+            if response and response.text:
+                result = response.text.strip().strip('"').strip("'")
+                logger.info(f"Gemini classification result: {result}")
+                return result
+        except Exception as e:
+            logger.error(f"Gemini classification failed: {e}")
+        
+        return None
+
 
     def _normalize_text(self, text):
         text = text.lower()
