@@ -14,6 +14,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from thefuzz import fuzz
 
+from database.models import User
+from auth.auth_util import hash_password, verify_password
+from flask import session
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -43,6 +47,59 @@ def create_app():
     @app.get("/")
     def index():
         return render_template("index.html")
+    
+    @app.post("/register")
+    def register():
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        if not username or not email or not password:
+            flash("All fields required", "error")
+            return redirect(url_for("index"))
+
+        hashed = hash_password(password)
+
+        try:
+            _ensure_db()
+            with SessionLocal() as db:
+                user = User(
+                    username=username,
+                    email=email,
+                    password_hash=hashed
+                )
+                db.add(user)
+                db.commit()
+        except Exception:
+            flash("User already exists or error occurred", "error")
+            return redirect(url_for("index"))
+
+        flash("Registered successfully!", "success")
+        return redirect(url_for("index"))
+    
+    @app.post("/login")
+    def login():
+        username = request.form.get("username")
+        password = request.form.get("password") 
+
+        _ensure_db()
+        with SessionLocal() as db:
+            user = db.query(User).filter(User.username == username).first() 
+
+            if not user or not verify_password(password, user.password_hash):
+                flash("Invalid credentials", "error")
+                return redirect(url_for("index"))   
+
+            session["user_id"] = user.id    
+
+        flash("Login successful!", "success")
+        return redirect(url_for("index"))
+    
+    @app.get("/logout")
+    def logout():
+        session.pop("user_id", None)
+        flash("Logged out", "success")
+        return redirect(url_for("index"))
 
     @app.post("/analyze")
     def analyze_image():
@@ -92,6 +149,7 @@ def create_app():
         )
 
     @app.post("/shops")
+    @login_required
     def save_shop():
         form_data, errors = _shop_form_data(request.form)
         comparison, selected_engine, comparison_payload = _comparison_state_from_form(request.form)
@@ -591,6 +649,14 @@ def _search_redirect_url():
         if request.form.get(key, "").strip()
     }
     return url_for("search", **filters)
+
+def login_required(func):
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Login required", "error")
+            return redirect(url_for("index"))
+        return func(*args, **kwargs)
+    return wrapper
 
 
 app = create_app()

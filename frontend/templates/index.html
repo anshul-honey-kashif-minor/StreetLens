@@ -1,117 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreetLens - AI Image Analyzer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
-        <nav>
-            <a href="{{ url_for('index') }}">Upload</a>
-            <a href="{{ url_for('search') }}">Search</a>
-            <a href="{{ url_for('nearby') }}">Near Me</a>
-        </nav>
-    </header>
+{% extends "base.html" %}
 
-    <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+{% block content %}
 
-        <div class="glass-card" style="max-width: 600px; margin: 4rem auto;">
-            <h2 style="margin-bottom: 0.5rem; text-align: center;">Upload Shop Image</h2>
-            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
-                Let AI extract the shop name, phone number, address, and category.
-            </p>
-            
-            <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
-                <!-- Preview (hidden by default, shown above drop zone) -->
-                <div id="previewContainer" style="display:none; text-align:center; margin-bottom:1rem;">
-                    <img id="imagePreview" style="max-width:100%; max-height:150px; border-radius:var(--border-radius); border:1px solid var(--border-color); object-fit:contain; background:rgba(0,0,0,0.3);">
-                    <p id="fileName" style="color:var(--accent-blue); font-weight:500; margin:0.5rem 0 0.5rem;"></p>
-                    <button type="button" id="replaceBtn" class="btn btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;">Replace Image</button>
-                </div>
+<div class="glass-card" style="max-width: 600px; margin: 4rem auto;">
+  <h2 style="text-align:center;">Upload Shop Image</h2>
 
-                <div class="upload-zone" id="dropZone">
-                    <div class="upload-icon">📸</div>
-                    <h3 style="margin-bottom: 0.5rem;">Drag & Drop Image Here</h3>
-                    <p style="color: var(--text-muted); margin-bottom: 1rem;">or click to browse files</p>
-                    <input type="file" name="image" id="fileInput" accept=".png,.jpg,.jpeg,.webp" required>
-                </div>
-                
-                <div style="text-align: center; margin-top: 2rem;">
-                    <button type="submit" class="btn btn-primary" id="submitBtn" style="width: 100%;">Analyze Image</button>
-                </div>
-            </form>
-        </div>
+  <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data">
+    <input type="file" name="image" required>
+    <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">
+      Analyze Image
+    </button>
+  </form>
+</div>
 
-        <div class="glass-card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
-            <h3 style="margin-bottom: 0.5rem;">🗺️ Find Shops Nearby</h3>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Discover shops near your location with an interactive map.</p>
-            <a href="{{ url_for('nearby') }}" class="btn btn-primary" style="width: 100%;">Open Near Me</a>
-        </div>
-    </main>
-
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-        <h2>Analyzing Image...</h2>
-        <p style="color: var(--text-muted); margin-top: 0.5rem;">This may take a few moments</p>
-    </div>
-
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const fileName = document.getElementById('fileName');
-        const uploadForm = document.getElementById('uploadForm');
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        const dropZone = document.getElementById('dropZone');
-        const previewContainer = document.getElementById('previewContainer');
-        const previewImg = document.getElementById('imagePreview');
-        const replaceBtn = document.getElementById('replaceBtn');
-
-        function showPreview(file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                previewImg.src = ev.target.result;
-                fileName.textContent = file.name;
-                previewContainer.style.display = 'block';
-                dropZone.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function resetToUpload() {
-            fileInput.value = '';
-            previewContainer.style.display = 'none';
-            dropZone.style.display = '';
-            fileName.textContent = '';
-        }
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                showPreview(e.target.files[0]);
-            }
-        });
-
-        replaceBtn.addEventListener('click', () => {
-            resetToUpload();
-            fileInput.click();
-        });
-
-        uploadForm.addEventListener('submit', () => {
-            if (fileInput.files.length > 0) {
-                loadingOverlay.classList.add('active');
-            }
-        });
-    </script>
-</body>
-</html>
+{% endblock %}
