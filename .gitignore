@@ -1,2 +1,11 @@
+# Virtual environment
 venv/
-.png
+.env
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Images (optional – only if you DON'T want images in repo)
+*.png
+*.jpeg
+*.jpg
