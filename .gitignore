@@ -1,8 +1,9 @@
-# Virtual environment
 venv/
-.png
-.env
-*.pyc
 __pycache__/
+.png
+.jpeg
 .jpg
-.jpeg                                 
+.env
+frontend/static/uploads/*
+!frontend/static/uploads/.gitkeep
+frontend/*.log
