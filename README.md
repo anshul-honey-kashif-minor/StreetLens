@@ -28,12 +28,7 @@ netstat -ano | Select-String ":8000.*LISTENING" | ForEach-Object { ($_ -split '\
    Update your `.env` file with your MySQL credentials and Gemini API Key:
    ```ini
    GEMINI_API_KEY=your_api_key_here
-   MYSQL_HOST=127.0.0.1
-   MYSQL_PORT=3306
-   MYSQL_USER=root
-   MYSQL_PASSWORD=mysql
-   MYSQL_DATABASE=streetlens
-   DATABASE_URL=mysql+pymysql://root:mysql@127.0.0.1:3306/streetlens
+   DATABASE_URL=postgresql[YOUR_URL]
    ```
 
 ## Usage
