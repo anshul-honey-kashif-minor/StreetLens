@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "StreetLens" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="{{ url_for('index') }}">StreetLens</a>
+      <nav class="nav">
+        <a href="{{ url_for('index') }}">Upload</a>
+        <a href="{{ url_for('search') }}">Search</a>
+        <a href="{{ url_for('nearby') }}">Near Me</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="alerts" aria-live="polite">
+            {% for category, message in messages %}
+              <p class="alert alert-{{ category }}">{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
