@@ -4,6 +4,9 @@ import re
 import sys
 import uuid
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 
@@ -14,8 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from thefuzz import fuzz
 
-from database.models import User
-from auth.auth_util import hash_password, verify_password
+
 from flask import session
 
 
@@ -25,7 +27,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from database.db import SessionLocal, init_db  # noqa: E402
 from database.models import Shop  # noqa: E402
-
+from database.models import User
+from auth.auth_util import hash_password, verify_password
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"

@@ -1,11 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreetLens - Near Me</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+{% extends "base.html" %}
+
+{% block extra_head %}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { overflow: hidden; }
@@ -297,18 +292,9 @@
             }
         }
     </style>
-</head>
-<body>
-    <header>
-        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
-        <nav>
-            <a href="{{ url_for('index') }}">Upload</a>
-            <a href="{{ url_for('search') }}">Search</a>
-            <a href="{{ url_for('nearby') }}">Near Me</a>
-        </nav>
-    </header>
+{% endblock %}
 
-    <main>
+{% block content %}
         <div class="nearby-wrapper">
             <!-- Sidebar -->
             <div class="nearby-sidebar">
@@ -548,5 +534,4 @@
         }
     });
     </script>
-</body>
-</html>
+{% endblock %}
