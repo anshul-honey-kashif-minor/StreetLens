@@ -1,3 +1,8 @@
 # Virtual environment
 venv/
 .png
+.env
+*.pyc
+__pycache__/
+.jpg
+.jpeg                                 
