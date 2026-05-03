@@ -9,7 +9,7 @@ from pathlib import Path
 
 import requests
 from flask import Flask, flash, redirect, render_template, request, url_for
-from sqlalchemy import Text, cast, desc, select
+from sqlalchemy import desc, select
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.utils import secure_filename
 from thefuzz import fuzz

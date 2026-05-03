@@ -1,8 +1,15 @@
+# Virtual environment
 venv/
+
+# Python cache
 __pycache__/
-.png
-.jpeg
-.jpg
+
+# Images (be careful with this)
+*.png
+*.jpeg
+*.jpg
+
+# Environment variables
 .env
 frontend/static/uploads/*
 !frontend/static/uploads/.gitkeep

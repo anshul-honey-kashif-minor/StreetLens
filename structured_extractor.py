@@ -88,7 +88,7 @@ class InformationExtractor:
 
     # ================= SHOP NAME =================
     def _extract_shop_name(self, lines, metadata, engine):
-        # try Gemini if available
+        # Only use Gemini for smarter shop name extraction if the Gemini engine is selected
         if engine == "gemini" and self.client:
             name = self._gemini_shop_name(lines)
             if name != "NA":
@@ -197,12 +197,18 @@ class InformationExtractor:
     def _gemini_shop_name(self, lines):
         try:
             text = "\n".join(lines)
-            prompt = f"""
-Extract ONLY the main business/shop name from this text.
-Ignore services, phone numbers, GST, address.
+            prompt = f"""From this shop banner text, identify and return ONLY the main business/shop name.
+The shop name is the primary business identifier (company name), NOT brands, products, or services listed.
 
+For example:
+- If text says "ABC Auto Parts - Distributor of BENTEX, MIECO, etc." → Answer: "ABC Auto Parts"
+- If text says "LAKSHMI SALES CORPORATION" → Answer: "LAKSHMI SALES CORPORATION"  
+- If text says "XYZ ENTERPRISES - Dealers in motors, starters, etc." → Answer: "XYZ ENTERPRISES"
+
+Banner text:
 {text}
-"""
+
+Return ONLY the shop name, nothing else. If unclear, return the most prominent line."""
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[{"role": "user", "parts": [{"text": prompt}]}],

@@ -52,8 +52,11 @@
                                         data-engine="{{ engine_key }}" 
                                         onclick="switchEngine('{{ engine_key }}')">
                                     {{ engine_data.engine_label }}
+                                    {% if engine_data.timing_ms %}
+                                        <span style="display: block; font-size: 0.75em; color: var(--text-muted); margin-top: 4px;">{{ engine_data.timing_ms | int }} ms</span>
+                                    {% endif %}
                                     {% if engine_data.status != 'success' %}
-                                        <span style="color: #f87171;">(Failed)</span>
+                                        <span style="color: #f87171; display: block; font-size: 0.8em; margin-top: 2px;">(Failed)</span>
                                     {% endif %}
                                 </button>
                             {% endfor %}
