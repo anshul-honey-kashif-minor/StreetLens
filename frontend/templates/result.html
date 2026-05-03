@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreetLens - {{ page_title }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
+        <nav>
+            <a href="{{ url_for('index') }}">Upload</a>
+            <a href="{{ url_for('search') }}">Search</a>
+        </nav>
+    </header>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="split-layout">
+            <!-- Left Side: Image -->
+            <div>
+                {% if image_url %}
+                    <img src="{{ image_url }}" alt="Uploaded Image" class="image-preview">
+                {% else %}
+                    <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+                        <div class="upload-icon">🚫</div>
+                        <p style="color: var(--text-muted);">No image available</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Side: Data -->
+            <div>
+                <div class="glass-card">
+                    <h2 style="margin-bottom: 1.5rem;">{{ page_title }}</h2>
+
+                    {% if comparison and comparison|length > 1 %}
+                        <div class="engine-tabs">
+                            {% for engine_key, engine_data in comparison.items() %}
+                                <button class="engine-tab {% if engine_key == selected_engine %}active{% endif %}"
+                                        data-engine="{{ engine_key }}" 
+                                        onclick="switchEngine('{{ engine_key }}')">
+                                    {{ engine_data.engine_label }}
+                                    {% if engine_data.status != 'success' %}
+                                        <span style="color: #f87171;">(Failed)</span>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <form action="{{ action_url }}" method="POST">
+                        <input type="hidden" name="image_path" value="{{ data.image_path }}">
+                        <input type="hidden" name="comparison_payload" value="{{ comparison_payload }}">
+                        <input type="hidden" name="selected_engine" id="selectedEngineInput" value="{{ selected_engine }}">
+                        <input type="hidden" name="extracted_text" id="extractedTextInput" value="{{ data.extracted_text }}">
+
+                        <div class="form-group">
+                            <label for="shop_name">Shop Name</label>
+                            <input type="text" id="shop_name" name="shop_name" value="{{ data.shop_name }}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone_number">Phone Number (comma separated)</label>
+                            <input type="text" id="phone_number" name="phone_number" value="{{ data.phone_number_text }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="category">Category</label>
+                            <input type="text" id="category" name="category" value="{{ data.category }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <textarea id="address" name="address" rows="3">{{ data.address }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gst_number">GST Number</label>
+                            <input type="text" id="gst_number" name="gst_number" value="{{ data.gst_number }}">
+                        </div>
+
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="latitude">Latitude</label>
+                                <input type="text" id="latitude" name="latitude" value="{{ data.latitude }}" placeholder="Auto-detected from EXIF">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="longitude">Longitude</label>
+                                <input type="text" id="longitude" name="longitude" value="{{ data.longitude }}" placeholder="Auto-detected from EXIF">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="miscellaneous_data">Miscellaneous Data (JSON Format)</label>
+                            <textarea id="miscellaneous_data" name="miscellaneous_data" rows="3">{{ data.miscellaneous_text }}</textarea>
+                        </div>
+
+                        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">{{ submit_label }}</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // If there's comparison data, we inject it here to switch fields quickly
+        const comparisonData = {{ comparison | tojson | safe }};
+
+        function switchEngine(engineKey) {
+            if (!comparisonData[engineKey]) return;
+            
+            // Update tabs UI
+            document.querySelectorAll('.engine-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.engine-tab[data-engine="${engineKey}"]`).classList.add('active');
+
+            // Update hidden inputs
+            document.getElementById('selectedEngineInput').value = engineKey;
+
+            const data = comparisonData[engineKey];
+            
+            // Only update fields if status is success
+            if (data.status === 'success') {
+                document.getElementById('shop_name').value = data.shop_name || '';
+                document.getElementById('phone_number').value = data.phone_number_text || '';
+                document.getElementById('category').value = data.category || '';
+                document.getElementById('address').value = data.address || '';
+                document.getElementById('gst_number').value = data.gst_number || '';
+                document.getElementById('latitude').value = data.latitude || '';
+                document.getElementById('longitude').value = data.longitude || '';
+                document.getElementById('miscellaneous_data').value = data.miscellaneous_text || '{}';
+                document.getElementById('extractedTextInput').value = data.extracted_text || '';
+            }
+        }
+    </script>
+</body>
+</html>
