@@ -12,9 +12,9 @@ load_dotenv()
 
 
 import requests
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for, jsonify
 from sqlalchemy import desc, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
 from werkzeug.utils import secure_filename
 from thefuzz import fuzz
 
@@ -37,6 +37,25 @@ ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 DB_INITIALIZED = False
 
 
+def _friendly_db_error(exc):
+    """Convert raw SQLAlchemy exceptions into user-friendly messages."""
+    msg = str(exc).lower()
+    if "could not translate host name" in msg or "name or service not known" in msg:
+        return "Database server could not be reached (DNS resolution failed). Please check your internet connection."
+    if "connection timed out" in msg or "10060" in msg:
+        return "Database connection timed out. The Supabase server may be paused or unreachable."
+    if "connection refused" in msg:
+        return "Database connection was refused. Please verify the database is running."
+    if "password authentication failed" in msg:
+        return "Database authentication failed. Please check your database credentials."
+    if "does not exist" in msg and "relation" in msg:
+        return "Database tables have not been created yet. Please run the migration script."
+    if "ssl" in msg:
+        return "Database SSL connection error. Please check your connection string."
+    # Fallback: strip the internal traceback noise
+    return "Database is currently unavailable. Please try again later."
+
+
 def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("STREETLENS_SECRET_KEY", "streetlens-dev-secret")
@@ -57,12 +76,20 @@ def create_app():
         username = request.form.get("username")
         email = request.form.get("email")
         password = request.form.get("password")
+        role = request.form.get("role", "customer")
 
         if not username or not email or not password:
-            flash("All fields required", "error")
-            return redirect(url_for("index"))
+            return jsonify(status="error", message="All fields are required."), 400
+
+        if role not in ["customer", "shop_owner"]:
+            return jsonify(status="error", message="Invalid role selected."), 400
 
         hashed = hash_password(password)
+
+        shop_id_str = request.form.get("shop_id")
+        shop_id = None
+        if shop_id_str and shop_id_str.isdigit():
+            shop_id = int(shop_id_str)
 
         try:
             _ensure_db()
@@ -70,39 +97,67 @@ def create_app():
                 user = User(
                     username=username,
                     email=email,
-                    password_hash=hashed
+                    password_hash=hashed,
+                    role=role
                 )
                 db.add(user)
-                db.commit()
-        except Exception:
-            flash("User already exists or error occurred", "error")
-            return redirect(url_for("index"))
+                db.flush() # flush to get user.id before commit
 
-        flash("Registered successfully!", "success")
-        return redirect(url_for("index"))
+                if role == "shop_owner" and shop_id:
+                    shop = db.get(Shop, shop_id)
+                    if shop and shop.owner_id is None:
+                        shop.owner_id = user.id
+
+                db.commit()
+        except IntegrityError:
+            return jsonify(status="error", message="Username or email already exists."), 400
+        except OperationalError as exc:
+            return jsonify(status="error", message=_friendly_db_error(exc)), 503
+        except Exception:
+            return jsonify(status="error", message="Registration failed. Please try again."), 500
+
+        return jsonify(status="success", message="Registered successfully! Please login.")
     
+    @app.get("/api/unclaimed_shops")
+    def unclaimed_shops():
+        try:
+            _ensure_db()
+            with SessionLocal() as db:
+                shops = db.query(Shop.id, Shop.shop_name, Shop.address).filter(Shop.owner_id.is_(None)).all()
+                return jsonify({
+                    "status": "success",
+                    "shops": [{"id": s.id, "name": s.shop_name, "address": s.address} for s in shops]
+                })
+        except Exception as exc:
+            return jsonify({"status": "error", "message": "Failed to load shops"}), 500
+
     @app.post("/login")
     def login():
         username = request.form.get("username")
         password = request.form.get("password") 
 
-        _ensure_db()
-        with SessionLocal() as db:
-            user = db.query(User).filter(User.username == username).first() 
+        try:
+            _ensure_db()
+            with SessionLocal() as db:
+                user = db.query(User).filter(User.username == username).first() 
 
-            if not user or not verify_password(password, user.password_hash):
-                flash("Invalid credentials", "error")
-                return redirect(url_for("index"))   
+                if not user or not verify_password(password, user.password_hash):
+                    return jsonify(status="error", message="Invalid username or password."), 401
 
-            session["user_id"] = user.id    
+                session["user_id"] = user.id
+                session["user_role"] = user.role
+        except OperationalError as exc:
+            return jsonify(status="error", message=_friendly_db_error(exc)), 503
+        except Exception:
+            return jsonify(status="error", message="Login failed due to a server error. Please try again."), 500
 
-        flash("Login successful!", "success")
-        return redirect(url_for("index"))
+        return jsonify(status="success", message="Login successful!")
     
     @app.get("/logout")
     def logout():
         session.pop("user_id", None)
-        flash("Logged out", "success")
+        session.pop("user_role", None)
+        flash("Logged out.", "success")
         return redirect(url_for("index"))
 
     @app.post("/analyze")
@@ -176,13 +231,17 @@ def create_app():
 
         try:
             _ensure_db()
-            with SessionLocal() as session:
+            with SessionLocal() as session_db:
                 shop = Shop(**form_data)
-                session.add(shop)
-                session.commit()
+                shop.owner_id = session.get("user_id")
+                session_db.add(shop)
+                session_db.commit()
                 shop_id = shop.id
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
+            return redirect(url_for("index"))
         except SQLAlchemyError as exc:
-            flash(f"Database save failed: {exc}", "error")
+            flash(f"Save failed: {_friendly_db_error(exc)}", "error")
             return (
                 _render_result_from_form(
                     form_data,
@@ -198,7 +257,7 @@ def create_app():
             )
 
         flash("Shop record saved.", "success")
-        return redirect(url_for("edit_shop", shop_id=shop_id))
+        return redirect(url_for("view_shop", shop_id=shop_id))
 
     @app.get("/search")
     def search():
@@ -210,10 +269,10 @@ def create_app():
         categories = []
         try:
             _ensure_db()
-            with SessionLocal() as session:
+            with SessionLocal() as session_db:
                 categories = [
                     row[0]
-                    for row in session.execute(
+                    for row in session_db.execute(
                         select(Shop.category)
                         .where(Shop.category.is_not(None), Shop.category != "")
                         .distinct()
@@ -221,11 +280,26 @@ def create_app():
                     )
                 ]
 
+                from sqlalchemy.orm import load_only
+                
                 query = select(Shop)
                 if category:
                     query = query.where(Shop.category == category)
 
-                all_shops = session.scalars(query.order_by(desc(Shop.created_at))).all()
+                # OPTIMIZATION: Only fetch columns needed for search and display.
+                # Skip large columns like extracted_text and miscellaneous_data to speed up fetching.
+                query = query.options(
+                    load_only(
+                        Shop.id, 
+                        Shop.shop_name, 
+                        Shop.category, 
+                        Shop.phone_number, 
+                        Shop.address, 
+                        Shop.owner_id
+                    )
+                )
+
+                all_shops = session_db.scalars(query.order_by(desc(Shop.created_at))).all()
                 
                 filtered_shops = []
                 for shop in all_shops:
@@ -246,8 +320,10 @@ def create_app():
                         filtered_shops.append(shop)
                         
                 shops = filtered_shops
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
         except SQLAlchemyError as exc:
-            flash(f"Search failed: {exc}", "error")
+            flash(f"Search failed: {_friendly_db_error(exc)}", "error")
 
         return render_template(
             "search.html",
@@ -283,18 +359,53 @@ def create_app():
         except requests.RequestException as e:
             return {"error": str(e)}, 500
 
-    @app.get("/shops/<int:shop_id>/edit")
-    def edit_shop(shop_id):
+    @app.get("/shops/<int:shop_id>")
+    def view_shop(shop_id):
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as session_db:
+                shop = session_db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(url_for("search"))
                 data = _shop_to_form_data(shop)
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
+            return redirect(url_for("search"))
         except SQLAlchemyError as exc:
-            flash(f"Could not load shop record: {exc}", "error")
+            flash(f"Could not load shop: {_friendly_db_error(exc)}", "error")
+            return redirect(url_for("search"))
+
+        return render_template(
+            "view.html",
+            data=data,
+            shop_id=shop_id,
+            owner_id=shop.owner_id,
+            page_title="View Shop Details"
+        )
+
+    @app.get("/shops/<int:shop_id>/edit")
+    def edit_shop(shop_id):
+        if not session.get("user_id"):
+            flash("Please login to edit shops.", "error")
+            return redirect(url_for("view_shop", shop_id=shop_id))
+
+        try:
+            _ensure_db()
+            with SessionLocal() as session_db:
+                shop = session_db.get(Shop, shop_id)
+                if not shop:
+                    flash("Shop record not found.", "error")
+                    return redirect(url_for("search"))
+                if shop.owner_id != session.get("user_id") and session.get("user_role") != "admin":
+                    flash("You are not authorized to edit this shop.", "error")
+                    return redirect(url_for("view_shop", shop_id=shop_id))
+                data = _shop_to_form_data(shop)
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
+            return redirect(url_for("search"))
+        except SQLAlchemyError as exc:
+            flash(f"Could not load shop: {_friendly_db_error(exc)}", "error")
             return redirect(url_for("search"))
 
         return render_template(
@@ -334,17 +445,24 @@ def create_app():
 
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as session_db:
+                shop = session_db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(url_for("search"))
 
+                if shop.owner_id != session.get("user_id") and session.get("user_role") != "admin":
+                    flash("You are not authorized to edit this shop.", "error")
+                    return redirect(url_for("view_shop", shop_id=shop_id))
+
                 for field, value in form_data.items():
                     setattr(shop, field, value)
-                session.commit()
+                session_db.commit()
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
+            return redirect(url_for("search"))
         except SQLAlchemyError as exc:
-            flash(f"Update failed: {exc}", "error")
+            flash(f"Update failed: {_friendly_db_error(exc)}", "error")
             return (
                 _render_result_from_form(
                     form_data,
@@ -367,17 +485,24 @@ def create_app():
     def delete_shop(shop_id):
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as session_db:
+                shop = session_db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(_search_redirect_url())
 
+                if shop.owner_id != session.get("user_id") and session.get("user_role") != "admin":
+                    flash("You are not authorized to delete this shop.", "error")
+                    return redirect(url_for("view_shop", shop_id=shop_id))
+
                 shop_name = shop.shop_name
-                session.delete(shop)
-                session.commit()
+                session_db.delete(shop)
+                session_db.commit()
+        except OperationalError as exc:
+            flash(_friendly_db_error(exc), "error")
+            return redirect(_search_redirect_url())
         except SQLAlchemyError as exc:
-            flash(f"Delete failed: {exc}", "error")
+            flash(f"Delete failed: {_friendly_db_error(exc)}", "error")
             return redirect(_search_redirect_url())
 
         flash(f"Deleted {shop_name}.", "success")
@@ -387,11 +512,16 @@ def create_app():
 
 
 def _ensure_db():
+    """Initialize tables if not already done. Errors propagate to caller."""
     global DB_INITIALIZED
     if DB_INITIALIZED:
         return
-    init_db()
-    DB_INITIALIZED = True
+    try:
+        init_db()
+        DB_INITIALIZED = True
+    except Exception:
+        # Let it propagate — each route handles the error with a friendly message
+        raise
 
 
 def _validate_upload(uploaded_file):

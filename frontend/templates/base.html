@@ -52,7 +52,10 @@
       
       <button onclick="closeAuthModal()" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
 
-      <form method="post" action="/login" id="loginForm">
+      <!-- Inline error/success message container -->
+      <div id="authMessage" style="display:none; padding: 0.75rem; margin-bottom: 1rem; border-radius: var(--border-radius); text-align: center; font-size: 0.9rem; font-weight: 500;"></div>
+
+      <form id="loginForm" onsubmit="handleAuth(event, '/login')">
         <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-blue); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Welcome Back</h3>
         <div class="form-group">
           <label>Username</label>
@@ -68,7 +71,7 @@
         </p>
       </form>
 
-      <form method="post" action="/register" id="registerForm" style="display:none;">
+      <form id="registerForm" style="display:none;" onsubmit="handleAuth(event, '/register')">
         <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-purple); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Create Account</h3>
         <div class="form-group">
           <label>Username</label>
@@ -81,6 +84,20 @@
         <div class="form-group">
           <label>Password</label>
           <input name="password" type="password" placeholder="Create a password" required>
+        </div>
+        <div class="form-group">
+          <label>I am a:</label>
+          <select name="role" id="roleSelect" required style="width: 100%; padding: 0.75rem; background: #1a1025; border: 1px solid rgba(255,255,255,0.12); color: #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.95rem;">
+            <option value="customer" style="background: #1a1025; color: #e2e8f0;">Customer</option>
+            <option value="shop_owner" style="background: #1a1025; color: #e2e8f0;">Shop Owner</option>
+          </select>
+        </div>
+        <div class="form-group" id="shopSelectGroup" style="display: none;">
+          <label>Claim a Shop (Optional):</label>
+          <select name="shop_id" id="shopSelect" style="width: 100%; padding: 0.75rem; background: #1a1025; border: 1px solid rgba(255,255,255,0.12); color: #e2e8f0; border-radius: 8px; font-family: inherit; font-size: 0.95rem;">
+            <option value="" style="background: #1a1025; color: #e2e8f0;">-- Select a Shop --</option>
+          </select>
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.3rem;">Only unclaimed shops are listed.</p>
         </div>
         <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register</button>
         <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
@@ -95,6 +112,7 @@
   <script>
     function openAuthModal(type) {
       document.getElementById('authModal').style.display = 'flex';
+      document.getElementById('authMessage').style.display = 'none';
 
       if (type === 'login') {
         document.getElementById('loginForm').style.display = 'block';
@@ -107,6 +125,97 @@
 
     function closeAuthModal() {
       document.getElementById('authModal').style.display = 'none';
+    }
+
+    // Handle fetching unclaimed shops
+    document.addEventListener('DOMContentLoaded', () => {
+      const roleSelect = document.getElementById('roleSelect');
+      const shopSelectGroup = document.getElementById('shopSelectGroup');
+      const shopSelect = document.getElementById('shopSelect');
+
+      roleSelect.addEventListener('change', async (e) => {
+        if (e.target.value === 'shop_owner') {
+          shopSelectGroup.style.display = 'block';
+          
+          try {
+            const res = await fetch('/api/unclaimed_shops');
+            const data = await res.json();
+            
+            // Clear existing except first
+            shopSelect.innerHTML = '<option value="" style="background: #1a1025; color: #e2e8f0;">-- Select a Shop --</option>';
+            
+            if (data.status === 'success' && data.shops.length > 0) {
+              data.shops.forEach(shop => {
+                const opt = document.createElement('option');
+                opt.value = shop.id;
+                opt.textContent = shop.name;
+                opt.style.background = '#1a1025';
+                opt.style.color = '#e2e8f0';
+                shopSelect.appendChild(opt);
+              });
+            } else {
+              const opt = document.createElement('option');
+              opt.value = "";
+              opt.textContent = "No unclaimed shops available";
+              opt.disabled = true;
+              shopSelect.appendChild(opt);
+            }
+          } catch (err) {
+            console.error("Failed to load shops", err);
+          }
+        } else {
+          shopSelectGroup.style.display = 'none';
+          shopSelect.value = '';
+        }
+      });
+    });
+
+    async function handleAuth(event, url) {
+      event.preventDefault();
+      const form = event.target;
+      const formData = new FormData(form);
+      const messageDiv = document.getElementById('authMessage');
+      
+      messageDiv.style.display = 'none';
+      
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        messageDiv.style.display = 'block';
+        messageDiv.textContent = result.message;
+        
+        if (result.status === 'success') {
+          messageDiv.style.background = 'rgba(16, 185, 129, 0.1)';
+          messageDiv.style.color = '#10b981';
+          messageDiv.style.border = '1px solid #10b981';
+          
+          if (url === '/login') {
+            setTimeout(() => window.location.reload(), 1000);
+          } else {
+            // After register, switch to login
+            setTimeout(() => {
+              openAuthModal('login');
+              document.getElementById('authMessage').style.display = 'block';
+              document.getElementById('authMessage').textContent = 'Please login with your new account.';
+            }, 1500);
+          }
+        } else {
+          messageDiv.style.background = 'rgba(248, 113, 113, 0.1)';
+          messageDiv.style.color = '#f87171';
+          messageDiv.style.border = '1px solid #f87171';
+        }
+      } catch (err) {
+        messageDiv.style.display = 'block';
+        messageDiv.textContent = 'A network error occurred.';
+        messageDiv.style.background = 'rgba(248, 113, 113, 0.1)';
+        messageDiv.style.color = '#f87171';
+        messageDiv.style.border = '1px solid #f87171';
+      }
     }
   </script>
 

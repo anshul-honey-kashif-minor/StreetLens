@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="split-layout">
+    <!-- Left Side: Image -->
+    <div>
+        {% if data.image_path %}
+            <img src="{{ url_for('static', filename=data.image_path) }}" alt="Shop Image" class="image-preview">
+        {% else %}
+            <div class="glass-card" style="text-align: center; padding: 4rem 2rem;">
+                <div class="upload-icon">🚫</div>
+                <p style="color: var(--text-muted);">No image available</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Side: Data -->
+    <div>
+        <div class="glass-card">
+            <h2 style="margin-bottom: 1.5rem; color: var(--accent-blue);">Shop Details</h2>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">Shop Name</label>
+                <div style="font-size: 1.2rem; font-weight: 500;">{{ data.shop_name or 'N/A' }}</div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">Phone Number(s)</label>
+                <div style="font-size: 1.1rem;">{{ data.phone_number_text or 'N/A' }}</div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">Category</label>
+                <div>
+                    {% if data.category %}
+                        <span style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.9rem;">
+                            {{ data.category }}
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">Address</label>
+                <div style="line-height: 1.4;">{{ data.address or 'N/A' }}</div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">GST Number</label>
+                <div>{{ data.gst_number or 'N/A' }}</div>
+            </div>
+
+            {% if data.miscellaneous_data %}
+            <div style="margin-bottom: 1.5rem;">
+                <label style="color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.2rem;">Additional Information</label>
+                <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 4px; border: 1px solid var(--border-color); font-family: monospace; font-size: 0.9rem; white-space: pre-wrap;">{{ data.miscellaneous_text }}</div>
+            </div>
+            {% endif %}
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                {% if session.get('user_id') and (session.get('user_id') == owner_id or session.get('user_role') == 'admin') %}
+                    <a href="{{ url_for('edit_shop', shop_id=shop_id) }}" class="btn btn-primary" style="flex: 1; text-align: center;">Edit Shop</a>
+                {% endif %}
+                <a href="{{ url_for('search') }}" class="btn btn-secondary" style="flex: 1; text-align: center;">Back to Search</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
