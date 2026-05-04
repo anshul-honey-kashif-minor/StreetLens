@@ -1,10 +1,12 @@
 venv/
 __pycache__/
-.png
-.jpeg
-.jpg
+*.png
+*.jpeg
+*.jpg
 .env
 frontend/static/uploads/*
 !frontend/static/uploads/.gitkeep
 frontend/*.log
+__pycache__/
+*.pyc
 
