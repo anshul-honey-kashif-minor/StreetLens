@@ -108,6 +108,7 @@ def create_app():
         return redirect(url_for("index"))
 
     @app.post("/analyze")
+    @login_required
     def analyze_image():
         uploaded_file = request.files.get("image")
         validation_error = _validate_upload(uploaded_file)
