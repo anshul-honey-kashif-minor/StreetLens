@@ -204,10 +204,10 @@ def create_app():
 
         try:
             _ensure_db()
-            with SessionLocal() as session:
+            with SessionLocal() as db:
                 shop = Shop(**form_data, user_id=session["user_id"])
-                session.add(shop)
-                session.commit()
+                db.add(shop)
+                db.commit()
                 shop_id = shop.id
         except SQLAlchemyError as exc:
             flash(f"Database save failed: {exc}", "error")
@@ -238,10 +238,10 @@ def create_app():
         categories = []
         try:
             _ensure_db()
-            with SessionLocal() as session:
+            with SessionLocal() as db:
                 categories = [
                     row[0]
-                    for row in session.execute(
+                    for row in db.execute(
                         select(Shop.category)
                         .where(Shop.category.is_not(None), Shop.category != "")
                         .distinct()
@@ -253,7 +253,7 @@ def create_app():
                 if category:
                     query = query.where(Shop.category == category)
 
-                all_shops = session.scalars(query.order_by(desc(Shop.created_at))).all()
+                all_shops = db.scalars(query.order_by(desc(Shop.created_at))).all()
                 
                 filtered_shops = []
                 for shop in all_shops:
@@ -316,8 +316,8 @@ def create_app():
     def edit_shop(shop_id):
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as db:
+                shop = db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(url_for("search"))
@@ -366,15 +366,15 @@ def create_app():
 
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as db:
+                shop = db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(url_for("search"))
 
                 for field, value in form_data.items():
                     setattr(shop, field, value)
-                session.commit()
+                db.commit()
         except SQLAlchemyError as exc:
             flash(f"Update failed: {exc}", "error")
             return (
@@ -402,15 +402,15 @@ def create_app():
     def delete_shop(shop_id):
         try:
             _ensure_db()
-            with SessionLocal() as session:
-                shop = session.get(Shop, shop_id)
+            with SessionLocal() as db:
+                shop = db.get(Shop, shop_id)
                 if not shop:
                     flash("Shop record not found.", "error")
                     return redirect(_search_redirect_url())
 
                 shop_name = shop.shop_name
-                session.delete(shop)
-                session.commit()
+                db.delete(shop)
+                db.commit()
         except SQLAlchemyError as exc:
             flash(f"Delete failed: {exc}", "error")
             return redirect(_search_redirect_url())
