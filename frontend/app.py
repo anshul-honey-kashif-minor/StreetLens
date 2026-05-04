@@ -287,8 +287,6 @@ def create_app():
 
     @app.get("/shops/<int:shop_id>/edit")
     @login_required
-    @premium_user_only
-    @owner_required
     def edit_shop(shop_id):
         try:
             _ensure_db()
