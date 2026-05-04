@@ -28,6 +28,23 @@
         <a href="#" onclick="openAuthModal('login')">Login</a>
         <a href="#" onclick="openAuthModal('register')" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Register</a>
       {% endif %}
+
+
+      {% if session.get('user_id') %}
+        <span>👤 Logged In</span>
+
+        {% if session.get('role') != 'premium' %}
+            <form method="post" action="/upgrade" style="display:inline;">
+                <button type="submit">Upgrade to Premium</button>
+            </form>
+        {% else %}
+            <span style="color: gold;">⭐ Premium</span>
+        {% endif %}
+          
+        <a href="{{ url_for('logout') }}">Logout</a>
+    {% endif %}
+
+    
     </nav>
   </header>
 

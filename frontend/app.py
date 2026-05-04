@@ -107,6 +107,31 @@ def create_app():
         flash("Logged out", "success")
         return redirect(url_for("index"))
 
+    @app.post("/upgrade")
+    @login_required
+    def upgrade():
+    
+        try:
+            _ensure_db()
+            with SessionLocal() as db:
+                user = db.get(User, session["user_id"])
+    
+                if not user:
+                    flash("User not found", "error")
+                    return redirect(url_for("index"))
+    
+                user.role = "premium"
+                db.commit()
+    
+                session["role"] = "premium"
+    
+        except SQLAlchemyError as exc:
+            flash(f"Upgrade failed: {exc}", "error")
+            return redirect(url_for("index"))
+    
+        flash("You are now a Premium user!", "success")
+        return redirect(url_for("index"))
+
     @app.post("/analyze")
     @login_required
     def analyze_image():
