@@ -1,32 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreetLens - Search</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
-        <nav>
-            <a href="{{ url_for('index') }}">Upload</a>
-            <a href="{{ url_for('search') }}">Search</a>
-            <a href="{{ url_for('nearby') }}">Near Me</a>
-        </nav>
-    </header>
+{% extends "base.html" %}
 
-    <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-messages">
-                    {% for category, message in messages %}
-                        <div class="alert {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+{% block content %}
 
         <div class="glass-card" style="margin-bottom: 2rem;">
             <form action="{{ url_for('search') }}" method="GET" class="toolbar">
@@ -108,6 +82,4 @@
                 </div>
             {% endif %}
         </div>
-    </main>
-</body>
-</html>
+{% endblock %}

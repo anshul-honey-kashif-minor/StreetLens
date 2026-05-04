@@ -1,33 +1,114 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title or "StreetLens" }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="brand" href="{{ url_for('index') }}">StreetLens</a>
-      <nav class="nav">
-        <a href="{{ url_for('index') }}">Upload</a>
-        <a href="{{ url_for('search') }}">Search</a>
-        <a href="{{ url_for('nearby') }}">Near Me</a>
-      </nav>
-    </header>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "StreetLens" }}</title>
 
-    <main class="shell">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="alerts" aria-live="polite">
-            {% for category, message in messages %}
-              <p class="alert alert-{{ category }}">{{ message }}</p>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
 
-      {% block content %}{% endblock %}
-    </main>
-  </body>
+<body>
+
+  <!-- NAVBAR -->
+  <header>
+    <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
+
+    <nav>
+      <a href="{{ url_for('index') }}">Upload</a>
+      <a href="{{ url_for('search') }}">Search</a>
+      <a href="{{ url_for('nearby') }}">Near Me</a>
+
+      {% if session.get('user_id') %}
+        <span style="margin-left: 1.5rem; color: var(--text-muted);">👤 Logged In</span>
+        <a href="{{ url_for('logout') }}" style="color: #f87171;">Logout</a>
+      {% else %}
+        <a href="#" onclick="openAuthModal('login')">Login</a>
+        <a href="#" onclick="openAuthModal('register')" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Register</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <!-- MAIN -->
+  <main class="shell">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alerts">
+          {% for category, message in messages %}
+            <p class="alert alert-{{ category }}">{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- AUTH MODAL -->
+  <div id="authModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,5,20,0.8); backdrop-filter: blur(8px); justify-content:center; align-items:center; z-index:1000;">
+    <div class="glass-card" style="width: 100%; max-width: 400px; padding: 2.5rem; position: relative;">
+      
+      <button onclick="closeAuthModal()" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+
+      <form method="post" action="/login" id="loginForm">
+        <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-blue); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Welcome Back</h3>
+        <div class="form-group">
+          <label>Username</label>
+          <input name="username" type="text" placeholder="Enter your username" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input name="password" type="password" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
+        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+          Don't have an account? <a href="#" onclick="openAuthModal('register')" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Register</a>
+        </p>
+      </form>
+
+      <form method="post" action="/register" id="registerForm" style="display:none;">
+        <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-purple); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Create Account</h3>
+        <div class="form-group">
+          <label>Username</label>
+          <input name="username" type="text" placeholder="Choose a username" required>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input name="email" type="email" placeholder="Enter your email" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input name="password" type="password" placeholder="Create a password" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register</button>
+        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
+          Already have an account? <a href="#" onclick="openAuthModal('login')" style="color: var(--accent-purple); text-decoration: none; font-weight: 500;">Login</a>
+        </p>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- SCRIPT -->
+  <script>
+    function openAuthModal(type) {
+      document.getElementById('authModal').style.display = 'flex';
+
+      if (type === 'login') {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+      } else {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+      }
+    }
+
+    function closeAuthModal() {
+      document.getElementById('authModal').style.display = 'none';
+    }
+  </script>
+
+</body>
 </html>
