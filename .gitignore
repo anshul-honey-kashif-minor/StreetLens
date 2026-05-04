@@ -3,7 +3,7 @@ venv/
 
 # Python cache
 __pycache__/
-
+*.pyc
 # Images (be careful with this)
 *.png
 *.jpeg
