@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, String, Text, JSON, func
+from sqlalchemy import DateTime, Float, Integer, String, Text, JSON, func, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database.db import Base
@@ -21,6 +21,7 @@ class Shop(Base):
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
 class User(Base):
     __tablename__ = "users"

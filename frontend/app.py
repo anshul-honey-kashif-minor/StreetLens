@@ -20,6 +20,7 @@ from thefuzz import fuzz
 
 
 from flask import session
+from functools import wraps
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -95,6 +96,7 @@ def create_app():
                 return redirect(url_for("index"))   
 
             session["user_id"] = user.id    
+            session["role"] = user.role
 
         flash("Login successful!", "success")
         return redirect(url_for("index"))
@@ -177,7 +179,7 @@ def create_app():
         try:
             _ensure_db()
             with SessionLocal() as session:
-                shop = Shop(**form_data)
+                shop = Shop(**form_data, user_id=session["user_id"])
                 session.add(shop)
                 session.commit()
                 shop_id = shop.id
@@ -284,6 +286,9 @@ def create_app():
             return {"error": str(e)}, 500
 
     @app.get("/shops/<int:shop_id>/edit")
+    @login_required
+    @premium_user_only
+    @owner_required
     def edit_shop(shop_id):
         try:
             _ensure_db()
@@ -311,6 +316,9 @@ def create_app():
         )
 
     @app.post("/shops/<int:shop_id>")
+    @login_required
+    @premium_user_only
+    @owner_required
     def update_shop(shop_id):
         form_data, errors = _shop_form_data(request.form)
         comparison, selected_engine, comparison_payload = _comparison_state_from_form(request.form)
@@ -364,6 +372,9 @@ def create_app():
         return redirect(url_for("edit_shop", shop_id=shop_id))
 
     @app.post("/shops/<int:shop_id>/delete")
+    @login_required
+    @premium_user_only
+    @owner_required
     def delete_shop(shop_id):
         try:
             _ensure_db()
@@ -663,6 +674,42 @@ def login_required(func):
         return func(*args, **kwargs)
     return wrapper
 
+
+def premium_user_only(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+
+        if "user_id" not in session:
+            flash("Login required", "error")
+            return redirect(url_for("index"))
+
+        if session.get("role") != "premium":
+            flash("Premium access required", "error")
+            return redirect(url_for("search"))
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def owner_required(func):
+    @wraps(func)
+    def wrapper(shop_id, *args, **kwargs):
+
+        with SessionLocal() as db:
+            shop = db.get(Shop, shop_id)
+
+            if not shop:
+                flash("Shop not found", "error")
+                return redirect(url_for("search"))
+
+            if shop.user_id != session.get("user_id"):
+                flash("You don't own this shop", "error")
+                return redirect(url_for("search"))
+
+        return func(shop_id, *args, **kwargs)
+
+    return wrapper
 
 app = create_app()
 
