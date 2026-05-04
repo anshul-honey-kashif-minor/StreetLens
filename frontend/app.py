@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import re
@@ -654,6 +655,7 @@ def _search_redirect_url():
     return url_for("search", **filters)
 
 def login_required(func):
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if "user_id" not in session:
             flash("Login required", "error")
