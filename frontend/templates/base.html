@@ -14,37 +14,60 @@
 
   <!-- NAVBAR -->
   <header>
-    <h1><a href="{{ url_for('index') }}" style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">StreetLens</a></h1>
+    <h1>
+      <a href="{{ url_for('index') }}" 
+         style="text-decoration:none;background:var(--accent-gradient);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+         StreetLens
+      </a>
+    </h1>
 
     <nav>
       <a href="{{ url_for('index') }}">Upload</a>
       <a href="{{ url_for('search') }}">Search</a>
       <a href="{{ url_for('nearby') }}">Near Me</a>
 
-      {% if session.get('user_id') %}
-        <span style="margin-left: 1.5rem; color: var(--text-muted);">👤 Logged In</span>
-        <a href="{{ url_for('logout') }}" style="color: #f87171;">Logout</a>
-      {% else %}
+      <!-- FIXED LOGIN / REGISTER BLOCK -->
+      {% if not session.get('user_id') %}
         <a href="#" onclick="openAuthModal('login')">Login</a>
-        <a href="#" onclick="openAuthModal('register')" style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Register</a>
+        <a href="#" onclick="openAuthModal('register')" 
+           style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">
+           Register
+        </a>
       {% endif %}
 
-
+      <!-- USER BLOCK -->
       {% if session.get('user_id') %}
-        <span>👤 Logged In</span>
+        <span style="margin-left: 1.5rem; color: var(--text-muted);">👤 Logged In</span>
 
         {% if session.get('role') != 'premium' %}
-            <form method="post" action="/upgrade" style="display:inline;">
-                <button type="submit">Upgrade to Premium</button>
-            </form>
+          <form method="post" action="/upgrade" style="display:inline;">
+            <button type="submit" 
+                style="
+                    background: rgba(255,255,255,0.1);
+                    color: #fff;
+                    border: 1px solid rgba(255,255,255,0.2);
+                    padding: 6px 12px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    cursor: pointer;
+                    backdrop-filter: blur(6px);
+                    transition: all 0.25s ease;
+                "
+                onmouseover="this.style.background='rgba(255,255,255,0.2)'; this.style.borderColor='rgba(255,255,255,0.4)'; this.style.transform='translateY(-1px)'"
+                onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='rgba(255,255,255,0.2)'; this.style.transform='translateY(0)'"
+                onmousedown="this.style.transform='scale(0.96)'"
+                onmouseup="this.style.transform='translateY(-1px)'"
+            >
+                Upgrade to Premium
+            </button>
+          </form>
         {% else %}
-            <span style="color: gold;">⭐ Premium</span>
+          <span style="color: gold;">⭐ Premium</span>
         {% endif %}
           
-        <a href="{{ url_for('logout') }}">Logout</a>
-    {% endif %}
+        <a href="{{ url_for('logout') }}" style="color: #f87171;">Logout</a>
+      {% endif %}
 
-    
     </nav>
   </header>
 
@@ -67,42 +90,52 @@
   <div id="authModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(10,5,20,0.8); backdrop-filter: blur(8px); justify-content:center; align-items:center; z-index:1000;">
     <div class="glass-card" style="width: 100%; max-width: 400px; padding: 2.5rem; position: relative;">
       
-      <button onclick="closeAuthModal()" style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">&times;</button>
+      <button onclick="closeAuthModal()" 
+        style="position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: color 0.3s;"
+        onmouseover="this.style.color='var(--text-main)'"
+        onmouseout="this.style.color='var(--text-muted)'">&times;</button>
 
+      <!-- LOGIN -->
       <form method="post" action="/login" id="loginForm">
-        <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-blue); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Welcome Back</h3>
+        <h3 style="margin-bottom: 1.5rem; text-align: center; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Welcome Back
+        </h3>
+
         <div class="form-group">
           <label>Username</label>
-          <input name="username" type="text" placeholder="Enter your username" required>
+          <input name="username" type="text" required>
         </div>
+
         <div class="form-group">
           <label>Password</label>
-          <input name="password" type="password" placeholder="Enter your password" required>
+          <input name="password" type="password" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Login</button>
-        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
-          Don't have an account? <a href="#" onclick="openAuthModal('register')" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">Register</a>
-        </p>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Login</button>
       </form>
 
+      <!-- REGISTER -->
       <form method="post" action="/register" id="registerForm" style="display:none;">
-        <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--accent-purple); font-size: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Create Account</h3>
+        <h3 style="margin-bottom: 1.5rem; text-align: center; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+          Create Account
+        </h3>
+
         <div class="form-group">
           <label>Username</label>
-          <input name="username" type="text" placeholder="Choose a username" required>
+          <input name="username" type="text" required>
         </div>
+
         <div class="form-group">
           <label>Email</label>
-          <input name="email" type="email" placeholder="Enter your email" required>
+          <input name="email" type="email" required>
         </div>
+
         <div class="form-group">
           <label>Password</label>
-          <input name="password" type="password" placeholder="Create a password" required>
+          <input name="password" type="password" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">Register</button>
-        <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">
-          Already have an account? <a href="#" onclick="openAuthModal('login')" style="color: var(--accent-purple); text-decoration: none; font-weight: 500;">Login</a>
-        </p>
+
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">Register</button>
       </form>
 
     </div>
