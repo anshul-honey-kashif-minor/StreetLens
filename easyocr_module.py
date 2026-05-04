@@ -57,12 +57,9 @@ class EasyOCRProcessor:
         height, width = image.shape[:2]
         longest_side = max(height, width)
 
-        if longest_side < 1200:
-            scale = 1600 / float(longest_side)
-            return cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-
-        if longest_side > 2400:
-            scale = 2400 / float(longest_side)
+        # Drastically reduce max size to speed up EasyOCR
+        if longest_side > 1200:
+            scale = 1200 / float(longest_side)
             return cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
         return image
@@ -71,22 +68,12 @@ class EasyOCRProcessor:
         resized = self._resize_for_ocr(image)
         gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 
-        gray_scale = 1.0
-        if min(gray.shape[:2]) < 1400:
-            gray_scale = 1.5
-            gray = cv2.resize(gray, None, fx=gray_scale, fy=gray_scale, interpolation=cv2.INTER_CUBIC)
-
+        # CLAHE improves text contrast on signboards without losing speed
         clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(gray)
 
-        # Bilateral filter preserves edges while removing noise — great for signboards
-        bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
-
-        # Only 3 variants for speed: color (catches everything), clahe (contrast),
-        # bilateral (edge-preserved denoising)
+        # Only 1 variant for maximum speed
         return {
-            "color": (resized, 1.0, 1.0),
-            "clahe": (clahe, gray_scale, gray_scale),
-            "bilateral": (bilateral, gray_scale, gray_scale),
+            "clahe": (clahe, 1.0, 1.0),
         }
 
     def _read_variant(self, reader, image_variant):
