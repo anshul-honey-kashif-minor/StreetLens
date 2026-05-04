@@ -26,20 +26,6 @@ from fastapi import HTTPException, Query
 from database.db import SessionLocal
 from database.models import Shop
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
-
-def _api_db_error(exc):
-    """Return a user-friendly database error message for the API."""
-    msg = str(exc).lower()
-    if "could not translate host name" in msg or "name or service not known" in msg:
-        return "Database server unreachable (DNS failed). Check your internet connection."
-    if "connection timed out" in msg or "10060" in msg:
-        return "Database connection timed out. Supabase may be paused or unreachable."
-    if "connection refused" in msg:
-        return "Database connection refused. Verify the database is running."
-    if "password authentication failed" in msg:
-        return "Database authentication failed. Check credentials."
-    return "Database is currently unavailable. Please try again later."
 
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0
@@ -98,8 +84,6 @@ def get_nearby(
                 "limit": limit,
                 "results": paginated
             }
-    except OperationalError as e:
-        raise HTTPException(status_code=503, detail=_api_db_error(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -114,7 +98,5 @@ def get_nearby_categories():
                 .order_by(Shop.category)
             ).all()
             return {"categories": [r[0] for r in rows]}
-    except OperationalError as e:
-        raise HTTPException(status_code=503, detail=_api_db_error(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

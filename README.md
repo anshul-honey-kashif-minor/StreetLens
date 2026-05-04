@@ -30,11 +30,7 @@ netstat -ano | Select-String ":8000.*LISTENING" | ForEach-Object { ($_ -split '\
    GEMINI_API_KEY=your_api_key_here
    DATABASE_URL=postgresql[YOUR_URL]
    ```
-   
-3. ** To make admin**
-```bash
-python create_admin.py [your_username_or_email]
-```
+
 ## Usage
 
 Start the entire application using the single `run.py` script:

@@ -4,43 +4,30 @@
 
 
         <div class="glass-card" style="max-width: 600px; margin: 4rem auto;">
-            {% if session.get('user_id') %}
-                <h2 style="margin-bottom: 0.5rem; text-align: center;">Upload Shop Image</h2>
-                <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
-                    Let AI extract the shop name, phone number, address, and category.
-                </p>
-                
-                <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
-                    <!-- Preview (hidden by default, shown above drop zone) -->
-                    <div id="previewContainer" style="display:none; text-align:center; margin-bottom:1rem;">
-                        <img id="imagePreview" style="max-width:100%; max-height:150px; border-radius:var(--border-radius); border:1px solid var(--border-color); object-fit:contain; background:rgba(0,0,0,0.3);">
-                        <p id="fileName" style="color:var(--accent-blue); font-weight:500; margin:0.5rem 0 0.5rem;"></p>
-                        <button type="button" id="replaceBtn" class="btn btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;">Replace Image</button>
-                    </div>
-
-                    <div class="upload-zone" id="dropZone">
-                        <div class="upload-icon">📸</div>
-                        <h3 style="margin-bottom: 0.5rem;">Drag & Drop Image Here</h3>
-                        <p style="color: var(--text-muted); margin-bottom: 1rem;">or click to browse files</p>
-                        <input type="file" name="image" id="fileInput" accept=".png,.jpg,.jpeg,.webp" required>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 2rem;">
-                        <button type="submit" class="btn btn-primary" id="submitBtn" style="width: 100%;">Analyze Image</button>
-                    </div>
-                </form>
-            {% else %}
-                <div style="text-align: center; padding: 2rem 1rem;">
-                    <div class="upload-icon" style="margin-bottom: 1rem;">📸</div>
-                    <h2 style="margin-bottom: 0.5rem;">StreetLens AI Upload</h2>
-                    <p style="color: var(--text-muted); margin-bottom: 2rem;">
-                        Please log in to upload images and add new shops to the platform.
-                        If you don't have an account, you can still search for nearby shops below!
-                    </p>
-                    <button onclick="openAuthModal('login')" class="btn btn-primary">Login to Upload</button>
-                    <button onclick="openAuthModal('register')" class="btn btn-secondary" style="margin-left: 0.5rem;">Register</button>
+            <h2 style="margin-bottom: 0.5rem; text-align: center;">Upload Shop Image</h2>
+            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
+                Let AI extract the shop name, phone number, address, and category.
+            </p>
+            
+            <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+                <!-- Preview (hidden by default, shown above drop zone) -->
+                <div id="previewContainer" style="display:none; text-align:center; margin-bottom:1rem;">
+                    <img id="imagePreview" style="max-width:100%; max-height:150px; border-radius:var(--border-radius); border:1px solid var(--border-color); object-fit:contain; background:rgba(0,0,0,0.3);">
+                    <p id="fileName" style="color:var(--accent-blue); font-weight:500; margin:0.5rem 0 0.5rem;"></p>
+                    <button type="button" id="replaceBtn" class="btn btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;">Replace Image</button>
                 </div>
-            {% endif %}
+
+                <div class="upload-zone" id="dropZone">
+                    <div class="upload-icon">📸</div>
+                    <h3 style="margin-bottom: 0.5rem;">Drag & Drop Image Here</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 1rem;">or click to browse files</p>
+                    <input type="file" name="image" id="fileInput" accept=".png,.jpg,.jpeg,.webp" required>
+                </div>
+                
+                <div style="text-align: center; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary" id="submitBtn" style="width: 100%;">Analyze Image</button>
+                </div>
+            </form>
         </div>
 
         <div class="glass-card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
@@ -58,49 +45,47 @@
 
     <script>
         const fileInput = document.getElementById('fileInput');
-        if (fileInput) {
-            const fileName = document.getElementById('fileName');
-            const uploadForm = document.getElementById('uploadForm');
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            const dropZone = document.getElementById('dropZone');
-            const previewContainer = document.getElementById('previewContainer');
-            const previewImg = document.getElementById('imagePreview');
-            const replaceBtn = document.getElementById('replaceBtn');
+        const fileName = document.getElementById('fileName');
+        const uploadForm = document.getElementById('uploadForm');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const dropZone = document.getElementById('dropZone');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImg = document.getElementById('imagePreview');
+        const replaceBtn = document.getElementById('replaceBtn');
 
-            function showPreview(file) {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    previewImg.src = ev.target.result;
-                    fileName.textContent = file.name;
-                    previewContainer.style.display = 'block';
-                    dropZone.style.display = 'none';
-                };
-                reader.readAsDataURL(file);
-            }
-
-            function resetToUpload() {
-                fileInput.value = '';
-                previewContainer.style.display = 'none';
-                dropZone.style.display = '';
-                fileName.textContent = '';
-            }
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    showPreview(e.target.files[0]);
-                }
-            });
-
-            replaceBtn.addEventListener('click', () => {
-                resetToUpload();
-                fileInput.click();
-            });
-
-            uploadForm.addEventListener('submit', () => {
-                if (fileInput.files.length > 0) {
-                    loadingOverlay.classList.add('active');
-                }
-            });
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                previewImg.src = ev.target.result;
+                fileName.textContent = file.name;
+                previewContainer.style.display = 'block';
+                dropZone.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
         }
+
+        function resetToUpload() {
+            fileInput.value = '';
+            previewContainer.style.display = 'none';
+            dropZone.style.display = '';
+            fileName.textContent = '';
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                showPreview(e.target.files[0]);
+            }
+        });
+
+        replaceBtn.addEventListener('click', () => {
+            resetToUpload();
+            fileInput.click();
+        });
+
+        uploadForm.addEventListener('submit', () => {
+            if (fileInput.files.length > 0) {
+                loadingOverlay.classList.add('active');
+            }
+        });
     </script>
 {% endblock %}

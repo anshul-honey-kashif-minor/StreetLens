@@ -15,13 +15,7 @@ if not DATABASE_URL:
 
 Base = declarative_base()
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-    future=True,
-    pool_recycle=300,
-    connect_args={"connect_timeout": 10},
-)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 def init_db():

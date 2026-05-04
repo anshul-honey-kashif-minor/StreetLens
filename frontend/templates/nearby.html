@@ -456,10 +456,7 @@
             loadMoreBtn.textContent = 'Loading…';
 
             fetch(url)
-                .then(r => {
-                    if (!r.ok) return r.json().then(err => { throw new Error(err.detail || 'Server error'); });
-                    return r.json();
-                })
+                .then(r => r.json())
                 .then(data => {
                     hideStatus();
                     totalAvailable = data.total || 0;
@@ -479,7 +476,7 @@
                         loadMoreWrap.style.display = 'none';
                     }
                 })
-                .catch(err => showStatus('⚠️', err.message || 'Error fetching shop data.'));
+                .catch(() => showStatus('⚠️', 'Error fetching shop data.'));
         }
 
         /* ── Render shop cards ── */
@@ -498,12 +495,8 @@
                     ${shop.category ? `<span class="shop-category-badge">${escHtml(shop.category)}</span>` : ''}
                     ${shop.address ? `<p class="shop-card-detail"><span>📍</span> ${escHtml(shop.address)}</p>` : ''}
                     ${shop.phone_number && shop.phone_number.length ? `<p class="shop-card-detail"><span>📞</span> ${escHtml(shop.phone_number.join(', '))}</p>` : ''}
-                    <div style="margin-top: 0.75rem;">
-                        <a href="/shops/${shop.id}" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; display: inline-block;">View Details</a>
-                    </div>
                 `;
-                card.addEventListener('click', (e) => {
-                    if (e.target.tagName.toLowerCase() === 'a') return; // Don't trigger map zoom if clicking the link
+                card.addEventListener('click', () => {
                     map.flyTo([shop.latitude, shop.longitude], 16, { duration: 0.8 });
                     markers[idx].marker.openPopup();
                 });
