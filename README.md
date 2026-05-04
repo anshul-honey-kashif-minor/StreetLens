@@ -39,6 +39,8 @@ Start the entire application using the single `run.py` script:
 python run.py
 ```
 
+without roles
+
 This will automatically launch:
 1. The FastAPI Backend on `http://127.0.0.1:8000`
 2. The Flask Frontend on `http://127.0.0.1:5000`
