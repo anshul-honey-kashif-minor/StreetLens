@@ -302,6 +302,25 @@ def create_app():
         except requests.RequestException as e:
             return {"error": str(e)}, 500
 
+    @app.get("/api/shop/<int:shop_id>/location")
+    def api_shop_location(shop_id):
+        try:
+            _ensure_db()
+            with SessionLocal() as db:
+                shop = db.get(Shop, shop_id)
+                if not shop:
+                    return {"error": "Shop not found"}, 404
+                return {
+                    "id": shop.id,
+                    "shop_name": shop.shop_name,
+                    "latitude": shop.latitude,
+                    "longitude": shop.longitude,
+                    "address": shop.address or "",
+                    "category": shop.category or "",
+                }, 200
+        except SQLAlchemyError as exc:
+            return {"error": str(exc)}, 500
+
     @app.get("/api/nearby/categories")
     def api_nearby_categories():
         fastapi_base = os.getenv("STREETLENS_API_URL", "http://127.0.0.1:8000").replace("/image-analyzer", "")
