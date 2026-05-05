@@ -30,7 +30,7 @@
       {% if not session.get('user_id') %}
         <a href="#" onclick="openAuthModal('login')">Login</a>
         <a href="#" onclick="openAuthModal('register')" 
-           style="background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">
+           style="background: var(--accent-gradient); color: white; border: none; font-weight: 600; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">
            Register
         </a>
       {% endif %}

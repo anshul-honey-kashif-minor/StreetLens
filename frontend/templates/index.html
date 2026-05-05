@@ -2,40 +2,73 @@
 
 {% block content %}
 
+    <!-- Hero Section -->
+    <div class="hero-section" style="text-align: center; margin: 4rem auto 6rem; max-width: 800px; padding: 2rem; position: relative;">
+        <!-- Subtle Glow Effect -->
+        <div style="position: absolute; top: -50%; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); z-index: -1; pointer-events: none;"></div>
 
-        <div class="glass-card" style="max-width: 600px; margin: 4rem auto;">
-            <h2 style="margin-bottom: 0.5rem; text-align: center;">Upload Shop Image</h2>
-            <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
-                Let AI extract the shop name, phone number, address, and category.
-            </p>
-            
-            <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
-                <!-- Preview (hidden by default, shown above drop zone) -->
-                <div id="previewContainer" style="display:none; text-align:center; margin-bottom:1rem;">
-                    <img id="imagePreview" style="max-width:100%; max-height:150px; border-radius:var(--border-radius); border:1px solid var(--border-color); object-fit:contain; background:rgba(0,0,0,0.3);">
-                    <p id="fileName" style="color:var(--accent-blue); font-weight:500; margin:0.5rem 0 0.5rem;"></p>
-                    <button type="button" id="replaceBtn" class="btn btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;">Replace Image</button>
-                </div>
+        <h1 style="font-size: 3.5rem; font-weight: 700; margin-bottom: 1.5rem; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2;">
+            Discover and Manage Shops Smarter
+        </h1>
+        <p style="font-size: 1.2rem; color: var(--text-muted); line-height: 1.6; max-width: 650px; margin: 0 auto 3rem;">
+            StreetLens helps you find nearby shops, explore details, and even add new shops using Smart image analysis. Just upload a shop image and extract key information instantly.
+        </p>
 
-                <div class="upload-zone" id="dropZone">
-                    <div class="upload-icon">📸</div>
-                    <h3 style="margin-bottom: 0.5rem;">Drag & Drop Image Here</h3>
-                    <p style="color: var(--text-muted); margin-bottom: 1rem;">or click to browse files</p>
-                    <input type="file" name="image" id="fileInput" accept=".png,.jpg,.jpeg,.webp" required>
+        <!-- Search Bar -->
+        <div class="hero-search" style="max-width: 600px; margin: 0 auto 3rem; position: relative;">
+            <form action="{{ url_for('search') }}" method="GET" style="display: flex; gap: 0.5rem;">
+                <div style="position: relative; flex: 1;">
+                    <span style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; opacity: 0.7;">🔍</span>
+                    <input type="text" name="shop_name" placeholder="Search for shops, categories, or locations..." 
+                           style="width: 100%; padding: 1.2rem 1.5rem 1.2rem 3.5rem; border-radius: 30px; font-size: 1.1rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-main); transition: var(--transition); box-shadow: 0 8px 32px rgba(0,0,0,0.2); backdrop-filter: blur(10px);"
+                           onfocus="this.style.boxShadow='0 0 20px var(--border-focus)'; this.style.borderColor='var(--accent-purple)'; this.style.background='rgba(255, 255, 255, 0.08)';"
+                           onblur="this.style.boxShadow='0 8px 32px rgba(0,0,0,0.2)'; this.style.borderColor='var(--border-color)'; this.style.background='rgba(255, 255, 255, 0.05)';">
                 </div>
-                
-                <div style="text-align: center; margin-top: 2rem;">
-                    <button type="submit" class="btn btn-primary" id="submitBtn" style="width: 100%;">Analyze Image</button>
-                </div>
+                <button type="submit" class="btn btn-primary" style="border-radius: 30px; padding: 0 2.5rem; font-size: 1.1rem; transition: background 0.3s, transform 0.3s; background: var(--accent-gradient);">Search</button>
             </form>
         </div>
 
-        <div class="glass-card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
-            <h3 style="margin-bottom: 0.5rem;">🗺️ Find Shops Nearby</h3>
-            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Discover shops near your location with an interactive map.</p>
-            <a href="{{ url_for('nearby') }}" class="btn btn-primary" style="width: 100%;">Open Near Me</a>
+        <!-- CTA Buttons -->
+        <div class="hero-buttons" style="display: flex; gap: 1.5rem; justify-content: center;">
+            <a href="{{ url_for('search') }}" class="btn btn-primary" style="border-radius: 30px; padding: 1rem 2.5rem; font-size: 1.1rem; box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4); transition: transform 0.3s, box-shadow 0.3s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 12px 30px rgba(139, 92, 246, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 25px rgba(139, 92, 246, 0.4)';">Search Shops</a>
+            <a href="#upload-section" class="btn btn-secondary" style="border-radius: 30px; padding: 1rem 2.5rem; font-size: 1.1rem; background: rgba(255,255,255,0.05); backdrop-filter: blur(5px); transition: background 0.3s, border-color 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--accent-purple)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.borderColor='var(--border-color)';">Upload Shop Image</a>
         </div>
-    </main>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="upload-section" class="glass-card" style="max-width: 600px; margin: 4rem auto;">
+        <h2 style="margin-bottom: 0.5rem; text-align: center;">Upload Shop Image</h2>
+        <p style="color: var(--text-muted); text-align: center; margin-bottom: 2rem;">
+            Let AI extract the shop name, phone number, address, and category.
+        </p>
+        
+        <form action="{{ url_for('analyze_image') }}" method="POST" enctype="multipart/form-data" id="uploadForm">
+            <!-- Preview (hidden by default, shown above drop zone) -->
+            <div id="previewContainer" style="display:none; text-align:center; margin-bottom:1rem;">
+                <img id="imagePreview" style="max-width:100%; max-height:150px; border-radius:var(--border-radius); border:1px solid var(--border-color); object-fit:contain; background:rgba(0,0,0,0.3);">
+                <p id="fileName" style="color:var(--accent-blue); font-weight:500; margin:0.5rem 0 0.5rem;"></p>
+                <button type="button" id="replaceBtn" class="btn btn-secondary" style="padding:0.4rem 1rem; font-size:0.8rem;">Replace Image</button>
+            </div>
+
+            <div class="upload-zone" id="dropZone">
+                <div class="upload-icon">📸</div>
+                <h3 style="margin-bottom: 0.5rem;">Drag & Drop Image Here</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">or click to browse files</p>
+                <input type="file" name="image" id="fileInput" accept=".png,.jpg,.jpeg,.webp" required>
+            </div>
+            
+            <div style="text-align: center; margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary" id="submitBtn" style="width: 100%;">Analyze Image</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Nearby Section -->
+    <div class="glass-card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
+        <h3 style="margin-bottom: 0.5rem;">🗺️ Find Shops Nearby</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Discover shops near your location with an interactive map.</p>
+        <a href="{{ url_for('nearby') }}" class="btn btn-primary" style="width: 100%;">Open Near Me</a>
+    </div>
 
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>

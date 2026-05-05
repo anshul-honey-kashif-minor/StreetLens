@@ -69,16 +69,29 @@ header h1 {
   margin: 0;
 }
 
+header nav {
+  display: flex;
+  align-items: center;
+}
+
 header nav a {
   color: var(--text-main);
   text-decoration: none;
-  margin-left: 1.5rem;
+  margin-left: 1rem;
   font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: var(--transition);
+  display: inline-block;
 }
 
 header nav a:hover {
-  color: var(--accent-purple);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-purple);
+  color: var(--text-main);
+  transform: translateY(-2px);
 }
 
 main {
